@@ -333,6 +333,15 @@ export class SceneDirector {
     this.goToScene('C01');
   }
 
+  // Full reset all progress
+  public resetAllProgress(): void {
+    this.persistence.resetAllProgress();
+    this.startNewRun();
+    this.goToScene('C01');
+    this.setGuide('已为你重置所有阅读与投喂进度，书页重新回到第一页。', 'narration');
+    this.setGhostSpeech('书页重新白了。你好，今晚有糖吗？');
+  }
+
   public goToScene(scene: SceneId): void {
     this.sceneEpoch++;
     const currentEpoch = this.sceneEpoch;

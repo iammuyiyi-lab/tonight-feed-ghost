@@ -654,6 +654,136 @@ html, body {
   background: var(--color-paper-dark);
 }
 
+/* Minimalist Clean Handbook */
+.handbook-summary-row {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.handbook-badge {
+  font-size: 11px;
+  padding: 3px 8px;
+  background: var(--color-paper-light);
+  border: 1px solid var(--color-ink-brown);
+  border-radius: 12px;
+  color: var(--color-ink-brown);
+  font-weight: 500;
+}
+
+.clean-forms-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.clean-form-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: var(--color-paper-light);
+  border: 1.5px solid var(--color-ink-brown);
+  border-radius: 8px;
+  box-shadow: 2px 2px 0 rgba(71, 57, 47, 0.15);
+}
+
+.clean-form-item.locked {
+  opacity: 0.6;
+  background: rgba(234, 219, 190, 0.35);
+  border-style: dashed;
+}
+
+.clean-form-icon {
+  font-size: 24px;
+  flex-shrink: 0;
+  width: 34px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.clean-form-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.clean-form-title {
+  font-size: 13px;
+  font-weight: bold;
+  color: var(--color-ink-brown);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.clean-form-tag {
+  font-size: 10px;
+  color: #ED9A55;
+  background: rgba(237, 154, 85, 0.15);
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-weight: normal;
+}
+
+.clean-form-quote {
+  font-size: 12px;
+  line-height: 1.35;
+  color: var(--color-ink-light);
+  margin-top: 3px;
+  word-break: break-word;
+}
+
+.clean-replay-btn {
+  flex-shrink: 0;
+  padding: 4px 8px;
+  font-size: 11px;
+  border: 1px solid var(--color-ink-brown);
+  background: var(--color-paper);
+  border-radius: 4px;
+  cursor: pointer;
+  color: var(--color-ink-brown);
+  transition: all 0.15s ease;
+}
+
+.clean-replay-btn:active {
+  transform: scale(0.95);
+  background: var(--color-paper-dark);
+}
+
+.clean-footer {
+  display: flex;
+  justify-content: space-between !important;
+  align-items: center;
+  padding: 10px 16px;
+}
+
+.clean-reset-link {
+  background: none;
+  border: none;
+  color: #C25B56;
+  font-size: 11px;
+  cursor: pointer;
+  text-decoration: underline;
+  padding: 4px 6px;
+}
+
+.clean-reset-link:active {
+  opacity: 0.6;
+}
+
+.paper-btn.danger-btn {
+  border-color: #C25B56 !important;
+  color: #C25B56 !important;
+  background: #FFF5F5 !important;
+}
+
+.paper-btn.danger-btn:hover {
+  background: #FFEBEB !important;
+}
+
 /* Handbook cards & wrappers */
 .handbook-cards-grid, .handbook-wrappers-grid {
   display: flex;

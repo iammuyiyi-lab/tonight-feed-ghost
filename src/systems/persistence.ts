@@ -56,7 +56,7 @@ export class PersistenceSystem {
   private readyPromise: Promise<void>;
 
   constructor() {
-    this.state = { ...INITIAL_SAVE_STATE };
+    this.state = JSON.parse(JSON.stringify(INITIAL_SAVE_STATE));
     this.readyPromise = this.initDB();
   }
 
@@ -307,6 +307,14 @@ export class PersistenceSystem {
       sleepwalk: 0,
     };
     this.state.replayCount++;
+    this.save();
+  }
+
+  // Complete reset to clean state (One-click reset progress)
+  public resetAllProgress(): void {
+    const savedSettings = { ...this.state.settings };
+    this.state = JSON.parse(JSON.stringify(INITIAL_SAVE_STATE));
+    this.state.settings = savedSettings;
     this.save();
   }
 }

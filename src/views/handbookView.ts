@@ -1,6 +1,5 @@
 import { SaveState, GhostFormId } from '../types';
 import { FORMS_META } from '../config/constants';
-import { CANDY_WRAPPERS, EASTER_EGGS_DEF } from '../config/collectibles';
 import { PersistenceSystem } from '../systems/persistence';
 
 export type HandbookTab = 'forms' | 'wrappers' | 'events' | 'poems';
@@ -21,202 +20,108 @@ export class HandbookView {
     this.currentTab = tab;
   }
 
-  public render(container: HTMLElement, onReplayForm?: (formId: GhostFormId) => void, onClose?: () => void): void {
+  public render(
+    container: HTMLElement,
+    onReplayForm?: (formId: GhostFormId) => void,
+    onClose?: () => void,
+    onResetProgress?: () => void
+  ): void {
     container.innerHTML = '';
     const wrapper = document.createElement('div');
-    wrapper.className = 'handbook-modal';
+    wrapper.className = 'handbook-modal clean-handbook';
 
     const state = this.state;
+    const coreForms: GhostFormId[] = ['pumpkin', 'milktea', 'poet', 'movie', 'sleepwalk'];
+    if (state.unlockedForms.includes('heart')) {
+      coreForms.push('heart');
+    }
+    const unlockedCoreCount = coreForms.filter((f) => state.unlockedForms.includes(f)).length;
 
-    // Header with tabs
+    // Header
     const header = document.createElement('div');
     header.className = 'handbook-header';
     header.innerHTML = `
-      <div class="handbook-title">《幽灵饲养手册》</div>
-      <div class="handbook-tabs">
-        <button class="handbook-tab-btn ${this.currentTab === 'forms' ? 'active' : ''}" data-tab="forms">形态 (${state.unlockedForms.length}/7)</button>
-        <button class="handbook-tab-btn ${this.currentTab === 'wrappers' ? 'active' : ''}" data-tab="wrappers">糖纸 (${state.collectibles.length}/12)</button>
-        <button class="handbook-tab-btn ${this.currentTab === 'events' ? 'active' : ''}" data-tab="events">怪事 (${state.easterEggs.length}/15)</button>
-        <button class="handbook-tab-btn ${this.currentTab === 'poems' ? 'active' : ''}" data-tab="poems">怪诗 (${state.savedPoems.length})</button>
+      <div class="handbook-title">《幽灵饲养便笺》</div>
+      <div class="handbook-summary-row">
+        <span class="handbook-badge">👻 见过的夜色：${unlockedCoreCount} / 5</span>
+        <span class="handbook-badge">🍬 已收录糖纸：${state.collectibles.length} / 12</span>
       </div>
     `;
     wrapper.appendChild(header);
 
-    // Tab content container
+    // Body content: Clean single list
     const content = document.createElement('div');
-    content.className = 'handbook-content';
+    content.className = 'handbook-content clean-content';
 
-    switch (this.currentTab) {
-      case 'forms':
-        this.renderFormsTab(content, onReplayForm);
-        break;
-      case 'wrappers':
-        this.renderWrappersTab(content);
-        break;
-      case 'events':
-        this.renderEventsTab(content);
-        break;
-      case 'poems':
-        this.renderPoemsTab(content);
-        break;
-    }
+    const quotes: Record<GhostFormId, string> = {
+      default: '一只掉进书里的小幽灵，喜欢甜食与发呆。',
+      pumpkin: '秋天大概是一封允许所有人变沉的信。我们甚至不必急着成熟，变圆就很好。',
+      milktea: '温柔大概就是：在急着下结论的深夜，允许你留一个长长的省略号。',
+      poet: '写诗毫无用处。但正因如此，它才配得上今晚干净的月色。',
+      movie: '生活如果是一部未剪辑的长镜头，那些看似枯燥的留白，才是我们真正活着的证据。',
+      sleepwalk: '原来梦也要下班。明早天亮之前，请允许我们在云朵的边缘多赖两秒。',
+      heart: '今夜宜喂鬼。也宜对自己稍微好一点。',
+    };
 
-    wrapper.appendChild(content);
+    const formsList = document.createElement('div');
+    formsList.className = 'clean-forms-list';
 
-    // Footer with Close bookmark
-    const footer = document.createElement('div');
-    footer.className = 'handbook-footer';
-    footer.innerHTML = `<button class="paper-btn close-handbook-btn">合上手册</button>`;
-    wrapper.appendChild(footer);
-
-    container.appendChild(wrapper);
-
-    // Bind tab clicks
-    header.querySelectorAll('.handbook-tab-btn').forEach((btn) => {
-      btn.addEventListener('click', (e) => {
-        const target = e.currentTarget as HTMLElement;
-        const tab = target.dataset.tab as HandbookTab;
-        this.setTab(tab);
-        this.render(container, onReplayForm, onClose);
-      });
-    });
-
-    footer.querySelector('.close-handbook-btn')?.addEventListener('click', () => {
-      if (onClose) onClose();
-    });
-  }
-
-  private renderFormsTab(container: HTMLElement, onReplayForm?: (formId: GhostFormId) => void): void {
-    const allForms: GhostFormId[] = ['default', 'pumpkin', 'milktea', 'poet', 'movie', 'sleepwalk', 'heart'];
-    const list = document.createElement('div');
-    list.className = 'handbook-cards-grid';
-    const state = this.state;
-
-    allForms.forEach((fId) => {
+    coreForms.forEach((fId) => {
       const isUnlocked = state.unlockedForms.includes(fId);
-      const meta = FORMS_META[fId];
+      const meta = FORMS_META[fId] || { name: fId, icon: '👻', title: '', desc: '' };
       const card = document.createElement('div');
-      card.className = `handbook-form-card ${isUnlocked ? 'unlocked' : 'locked'}`;
+      card.className = `clean-form-item ${isUnlocked ? 'unlocked' : 'locked'}`;
 
       if (isUnlocked) {
         card.innerHTML = `
-          <div class="card-icon">${meta.icon}</div>
-          <div class="card-title">${meta.name}</div>
-          <div class="card-subtitle">${meta.title}</div>
-          <div class="card-desc">${meta.desc}</div>
-          ${fId !== 'default' && fId !== 'heart' ? `<button class="card-replay-btn" data-form="${fId}">重玩此形态</button>` : ''}
+          <div class="clean-form-icon">${meta.icon}</div>
+          <div class="clean-form-body">
+            <div class="clean-form-title">${meta.name} <span class="clean-form-tag">已收录</span></div>
+            <div class="clean-form-quote">“${quotes[fId] || meta.desc}”</div>
+          </div>
+          ${onReplayForm && fId !== 'default' && fId !== 'heart' ? `<button class="clean-replay-btn" data-form="${fId}" title="重温此形态">重温 ↺</button>` : ''}
         `;
-        const replayBtn = card.querySelector('.card-replay-btn');
+        const replayBtn = card.querySelector('.clean-replay-btn');
         if (replayBtn) {
-          replayBtn.addEventListener('click', () => {
+          replayBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
             if (onReplayForm) onReplayForm(fId);
           });
         }
       } else {
         card.innerHTML = `
-          <div class="card-icon">❓</div>
-          <div class="card-title">尚未见过</div>
-          <div class="card-desc">这一页暂时不肯说话。</div>
+          <div class="clean-form-icon lock-icon">❓</div>
+          <div class="clean-form-body">
+            <div class="clean-form-title locked-title">尚未见过的夜色</div>
+            <div class="clean-form-quote locked-quote">在选糖托盘里投喂对应糖果后收录。</div>
+          </div>
         `;
       }
-      list.appendChild(card);
+      formsList.appendChild(card);
     });
 
-    container.appendChild(list);
-  }
+    content.appendChild(formsList);
+    wrapper.appendChild(content);
 
-  private renderWrappersTab(container: HTMLElement): void {
-    const list = document.createElement('div');
-    list.className = 'handbook-wrappers-grid';
-    const state = this.state;
+    // Footer with Close and Reset
+    const footer = document.createElement('div');
+    footer.className = 'handbook-footer clean-footer';
+    footer.innerHTML = `
+      <button class="paper-btn close-handbook-btn">合上手册 📖</button>
+      <button class="clean-reset-link" id="handbookResetBtn" title="清空全部游戏进度">↺ 一键重置进度</button>
+    `;
+    wrapper.appendChild(footer);
 
-    CANDY_WRAPPERS.forEach((w) => {
-      const isCollected = state.collectibles.includes(w.id);
-      const item = document.createElement('div');
-      item.className = `handbook-wrapper-item ${isCollected ? 'unlocked' : 'locked'}`;
+    container.appendChild(wrapper);
 
-      if (isCollected) {
-        item.innerHTML = `
-          <div class="wrapper-header">#${w.id}｜${w.title}</div>
-          <div class="wrapper-text">“${w.text}”</div>
-          <div class="wrapper-source">来源：${w.source}</div>
-        `;
-      } else {
-        item.innerHTML = `
-          <div class="wrapper-header">#${w.id}｜未收录</div>
-          <div class="wrapper-text">留待夜晚的风把它吹开。</div>
-        `;
+    footer.querySelector('.close-handbook-btn')?.addEventListener('click', () => {
+      if (onClose) onClose();
+    });
+
+    footer.querySelector('#handbookResetBtn')?.addEventListener('click', () => {
+      if (onResetProgress) {
+        onResetProgress();
       }
-      list.appendChild(item);
     });
-
-    container.appendChild(list);
-  }
-
-  private renderEventsTab(container: HTMLElement): void {
-    const list = document.createElement('div');
-    list.className = 'handbook-events-list';
-    const state = this.state;
-
-    EASTER_EGGS_DEF.forEach((egg) => {
-      const isFound = state.easterEggs.includes(egg.id);
-      const row = document.createElement('div');
-      row.className = `handbook-event-row ${isFound ? 'found' : 'hidden'}`;
-
-      if (isFound) {
-        row.innerHTML = `
-          <div class="event-id">${egg.id}</div>
-          <div class="event-info">
-            <div class="event-name">${egg.name}</div>
-            <div class="event-desc">${egg.desc}</div>
-          </div>
-          <div class="event-badge">已归档</div>
-        `;
-      } else {
-        row.innerHTML = `
-          <div class="event-id">${egg.id}</div>
-          <div class="event-info">
-            <div class="event-name">隐藏怪事</div>
-            <div class="event-desc">也许在某个不经意的小动作里。</div>
-          </div>
-          <div class="event-badge unread">未记录</div>
-        `;
-      }
-      list.appendChild(row);
-    });
-
-    container.appendChild(list);
-  }
-
-  private renderPoemsTab(container: HTMLElement): void {
-    const list = document.createElement('div');
-    list.className = 'handbook-poems-list';
-    const state = this.state;
-
-    if (state.savedPoems.length === 0) {
-      list.innerHTML = `
-        <div class="empty-poetry">
-          <div class="empty-feather">✒️</div>
-          <div class="empty-text">这里暂时只有墨水的味道。</div>
-          <div class="empty-sub">走过诗人路线后，半糖写下的短诗会抄录在这里。</div>
-        </div>
-      `;
-    } else {
-      state.savedPoems.forEach((p) => {
-        const card = document.createElement('div');
-        card.className = 'saved-poem-card';
-        card.innerHTML = `
-          <div class="poem-title">${p.title}</div>
-          <div class="poem-materials">材料：${p.materials.join(' · ')}</div>
-          <div class="poem-lines">
-            ${p.lines.map((l) => `<p>${l}</p>`).join('')}
-          </div>
-          <div class="poem-date">${new Date(p.timestamp).toLocaleDateString()}</div>
-        `;
-        list.appendChild(card);
-      });
-    }
-
-    container.appendChild(list);
   }
 }

@@ -501,6 +501,24 @@ assert.ok(director.guideText.includes('写给今晚的一首短诗'), '终章信
 
 console.log('✓ 五颗糖连环品尝体验与浪漫哲思收束核验通过');
 
+// 21. 验证一键重置所有进度功能与极简便笺
+console.log('测试 21: 验证一键重置所有进度功能 (resetAllProgress)');
+// 模拟拥有很多收集与进度的状态
+persistence.getState().collectibles = ['01', '02', '03', '04'];
+persistence.getState().unlockedForms = ['default', 'pumpkin', 'milktea', 'poet'];
+director.eatenCandiesInRun = ['pumpkin', 'milk', 'star'];
+
+director.resetAllProgress();
+
+assert.strictEqual(director.currentScene, 'C01', '一键重置后必须回到第一页 C01');
+assert.strictEqual(director.eatenCandiesInRun.length, 0, '已品尝糖果列表必须清空');
+assert.strictEqual(persistence.getState().collectibles.length, 0, '糖纸收藏必须完全清空');
+assert.deepStrictEqual(persistence.getState().unlockedForms, ['default'], '形态解锁必须恢复初始状态');
+assert.strictEqual(director.c01SignTapped, false, 'C01 招手状态必须重置');
+assert.strictEqual(director.ghostSpeech, '书页重新白了。你好，今晚有糖吗？', '半糖必须说出重置欢迎台词');
+
+console.log('✓ 一键重置所有进度与归零重归扉页核验通过');
+
 console.log('\n========================================');
-console.log('🎉 20 项端到端业务、五颗糖连环选尝、浪漫诗意剧情回归测试全部通过！');
+console.log('🎉 21 项端到端业务、五颗糖连环品尝、极简便笺与一键重置测试全部通过！');
 console.log('========================================');

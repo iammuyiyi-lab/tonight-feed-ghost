@@ -1926,6 +1926,14 @@ class GameApp {
               <span class="slider"></span>
             </label>
           </div>
+          <div class="settings-reset-section" style="margin-top: 18px; padding-top: 14px; border-top: 1.5px dashed rgba(71, 57, 47, 0.3);">
+            <button class="paper-btn danger-btn" id="settingsResetBtn" style="width: 100%;">
+              ↺ 一键重置所有进度
+            </button>
+            <div style="font-size: 11px; color: var(--color-ink-light); text-align: center; margin-top: 6px;">
+              清空所有糖纸与记录，翻回第一页重新开始
+            </div>
+          </div>
         </div>
         <div class="settings-footer">
           <button class="paper-btn close-settings-btn">合上设置</button>
@@ -1955,9 +1963,23 @@ class GameApp {
       this.persistence.save();
     });
 
+    document.getElementById('settingsResetBtn')?.addEventListener('click', () => {
+      this.confirmAndResetProgress();
+    });
+
     this.modalOverlay.querySelector('.close-settings-btn')?.addEventListener('click', () => {
       this.modalOverlay.style.display = 'none';
     });
+  }
+
+  private confirmAndResetProgress(): void {
+    const isConfirmed = window.confirm('确定要一键重置所有进度吗？\n所有已收集的糖纸、解锁的夜色形态将全部清空，书页将重新翻回第一页。');
+    if (isConfirmed) {
+      this.modalOverlay.style.display = 'none';
+      this.audio.playSfx('pageFlip');
+      this.director.resetAllProgress();
+      this.renderControlsForScene('C01');
+    }
   }
 
   private openHandbookModal(): void {
@@ -1971,6 +1993,9 @@ class GameApp {
       },
       () => {
         this.modalOverlay.style.display = 'none';
+      },
+      () => {
+        this.confirmAndResetProgress();
       }
     );
   }
