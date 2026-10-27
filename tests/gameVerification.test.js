@@ -519,6 +519,31 @@ assert.strictEqual(director.ghostSpeech, '书页重新白了。你好，今晚�
 
 console.log('✓ 一键重置所有进度与归零重归扉页核验通过');
 
+// 22. 验证非自动跳关与玩家自主翻页机制 (拒绝喂糖文字刚出来就倒计时跳过)
+console.log('测试 22: 验证文字完全留存、无倒计时强行跳页、玩家自主翻页与顶部重置按钮机制');
+director.goToScene('C02');
+director.feedCandyInC02('milk');
+assert.strictEqual(director.currentScene, 'C02', '喂糖后必须停留在 C02，绝不自动跳转');
+assert.strictEqual(director.c02SelectedCandy, 'milk', '当前选糖状态必须锁定在 milk');
+assert.ok(director.ghostSpeech.includes('我身体里出现了标点'), '幽灵初次反馈必须完整呈现在气泡内');
+assert.ok(director.ghostSpeech.includes('标点'), '后遗症异变必须与幽灵对白合并呈现，绝不自动覆盖刷掉');
+assert.strictEqual(director.currentPhase, 'interactive', '必须保持交互状态，等待玩家主动翻页');
+
+// 玩家手动翻页至 C03
+director.goToScene('C03');
+assert.strictEqual(director.currentScene, 'C03');
+director.shakeMilkTeaC03();
+assert.strictEqual(director.c03Finished, true);
+assert.ok(director.ghostSpeech.includes('问号'), 'C03 互动后角色台词必须完好保留在气泡中');
+assert.ok(director.guideText.includes('温柔'), 'C03 旁白栏必须完好展示哲理叙事');
+assert.strictEqual(director.currentScene, 'C03', 'C03 互动后绝不得倒计时自动跳关');
+
+// 玩家手动翻页
+director.advanceFromC03();
+assert.strictEqual(director.currentScene, 'C02', '自主翻页后进入下一幕选糖');
+
+console.log('✓ 玩家阅读节奏完全自主把控、杜绝强制跳页验收通过');
+
 console.log('\n========================================');
-console.log('🎉 21 项端到端业务、五颗糖连环品尝、极简便笺与一键重置测试全部通过！');
+console.log('🎉 22 项端到端业务、五颗糖连环品尝、自主翻页与一键重置测试全部通过！');
 console.log('========================================');

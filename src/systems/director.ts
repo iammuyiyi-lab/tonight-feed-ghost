@@ -872,28 +872,22 @@ export class SceneDirector {
     const sfxName = (candyResp.soundId as any) || 'swallow';
     this.audio.playSfx(sfxName);
 
-    // First dialogue
+    // Poetic ghost dialogue: combine initial reaction with abnormality reflection
     const comment = candyResp.firstDialogue[0];
-    const speech = candyResp.firstDialogue.join(' ');
-    this.setGuide('糖分在纸页上徐徐化开，唤醒了一段夜色……', 'narration');
-    this.setGhostSpeech(speech);
+    const initialSpeech = candyResp.firstDialogue.join(' ');
+    const abLines = (CHAPTER_SCRIPTS.C02.abnormality as any)[type] || [
+      '等一下，这颗糖有一点副作用。',
+      '说明书早就过期了。',
+    ];
+    const abSpeech = abLines.join(' ');
+    const fullSpeech = `${initialSpeech} ${abSpeech}`;
 
-    const epoch = this.sceneEpoch;
-    setTimeout(() => {
-      if (this.sceneEpoch !== epoch) return;
-      this.ghost.targetLookY = 0.85;
-      const abLines = (CHAPTER_SCRIPTS.C02.abnormality as any)[type] || [
-        '等一下，这颗糖有一点副作用。',
-        '说明书早就过期了。',
-      ];
-      this.setGuide('半糖低头端详自己，身体发生了奇妙的诗意异变。', 'narration');
-      this.setGhostSpeech(abLines.join(' '));
-      setTimeout(() => {
-        if (this.sceneEpoch === epoch) {
-          this.goToScene('C03');
-        }
-      }, 1400);
-    }, 1600);
+    this.ghost.targetLookY = 0.85;
+    this.setGuide('糖分在纸页上徐徐化开，唤醒了一段夜色。点击下方翻页继续品读。', 'hint');
+    this.setGhostSpeech(fullSpeech);
+
+    // Keep interactive phase so player can leisurely read and click to advance
+    this.currentPhase = 'interactive';
 
     if (this.onActionControlsUpdated) {
       this.onActionControlsUpdated();
@@ -904,19 +898,13 @@ export class SceneDirector {
   public tapC01(): void {
     if (this.c01SignTapped) return;
     this.c01SignTapped = true;
-    this.currentPhase = 'resolving';
+    this.currentPhase = 'interactive';
     this.ghost.setAction('bounce', 0.8);
     this.ghost.expression = 'joy';
     this.audio.playSfx('boop');
-    this.setGuide('半糖看起来很高兴。', 'narration');
+    this.setGuide('半糖看起来很高兴。点击下方翻页开始挑选糖果。', 'hint');
     this.setGhostSpeech(CHAPTER_SCRIPTS.C01.tapResponse);
     if (this.onActionControlsUpdated) this.onActionControlsUpdated();
-    const epoch = this.sceneEpoch;
-    setTimeout(() => {
-      if (this.sceneEpoch === epoch) {
-        this.goToScene('C02');
-      }
-    }, 900);
   }
 
   public advanceFromC03(): void {
@@ -929,26 +917,17 @@ export class SceneDirector {
   }
 
   public scheduleNextAfterC03(): void {
-    const epoch = this.sceneEpoch;
-    setTimeout(() => {
-      if (this.sceneEpoch !== epoch) return;
-      if (this.eatenCandiesInRun.length < 5) {
-        const remainingCount = 5 - this.eatenCandiesInRun.length;
-        this.setGhostSpeech(`（细细回味）胃里存下了一段故事。但长夜未央，托盘里还剩 ${remainingCount} 颗不同滋味的糖。`);
-        this.setGuide(`点击下方翻页按钮，翻向下一页继续品尝（还剩 ${remainingCount} 颗）。`, 'hint');
-        if (this.onActionControlsUpdated) this.onActionControlsUpdated();
-      } else {
-        this.setGhostSpeech('五颗糖都吃完了……南瓜的秋意、标点的留白、诗人的废诗、默片的克制，还有云朵的逃跑。谢谢你陪我读完这个夜晚。');
-        this.setGuide('夜色已完全在纸页上化开。点击翻向终章，收下回礼。', 'hint');
-        if (this.onActionControlsUpdated) this.onActionControlsUpdated();
-      }
-    }, 1300);
+    // Retain dialogue and philosophy without overwriting; update controls for page-turn button
+    this.currentPhase = 'interactive';
+    if (this.onActionControlsUpdated) {
+      this.onActionControlsUpdated();
+    }
   }
 
   public straightenPumpkinHatC03(): void {
     if (this.c03Finished) return;
     this.c03Finished = true;
-    this.currentPhase = 'resolving';
+    this.currentPhase = 'interactive';
     this.ghost.hatTilt = 0;
     this.ghost.headTiltBack = -0.15;
     this.audio.playSfx('boop');
@@ -956,14 +935,13 @@ export class SceneDirector {
     this.persistence.save();
     this.setGuide(CHAPTER_SCRIPTS.C03.pumpkin.philosophy, 'narration');
     this.setGhostSpeech(CHAPTER_SCRIPTS.C03.pumpkin.line);
-    if (this.onActionControlsUpdated) this.onActionControlsUpdated();
     this.scheduleNextAfterC03();
   }
 
   public shakeMilkTeaC03(): void {
     if (this.c03Finished) return;
     this.c03Finished = true;
-    this.currentPhase = 'resolving';
+    this.currentPhase = 'interactive';
     this.ghost.showQuestionPearls = true;
     this.audio.playSfx('boop');
     this.persistence.unlockWrapper('04');
@@ -971,14 +949,13 @@ export class SceneDirector {
     const line = CHAPTER_SCRIPTS.C03.milktea.lines.join(' ');
     this.setGuide(CHAPTER_SCRIPTS.C03.milktea.philosophy, 'narration');
     this.setGhostSpeech(line);
-    if (this.onActionControlsUpdated) this.onActionControlsUpdated();
     this.scheduleNextAfterC03();
   }
 
   public choosePoetWordC03(word: '月亮' | '糖纸' | '失眠'): void {
     if (this.c03Finished) return;
     this.c03Finished = true;
-    this.currentPhase = 'resolving';
+    this.currentPhase = 'interactive';
     const poemData = CHAPTER_SCRIPTS.C03.poet.poems[word];
     this.poetGame.generatedPoem = {
       title: poemData.title,
@@ -992,7 +969,7 @@ export class SceneDirector {
     this.audio.playSfx('chime');
     this.setGuide(CHAPTER_SCRIPTS.C03.poet.philosophy, 'narration');
     this.setGhostSpeech(CHAPTER_SCRIPTS.C03.poet.line);
-    if (this.onActionControlsUpdated) this.onActionControlsUpdated();
+    this.scheduleNextAfterC03();
   }
 
   public finishPoetC03(): void {
@@ -1002,39 +979,31 @@ export class SceneDirector {
   public hitMovieSlateC03(): void {
     if (this.c03Finished) return;
     this.c03Finished = true;
-    this.currentPhase = 'resolving';
+    this.currentPhase = 'interactive';
     this.audio.playSfx('clapper');
     this.ghost.setAction('tumble', 1.2);
     this.persistence.unlockWrapper('06');
     this.persistence.save();
     this.setGuide(CHAPTER_SCRIPTS.C03.movie.philosophy, 'narration');
     this.setGhostSpeech(CHAPTER_SCRIPTS.C03.movie.line);
-    if (this.onActionControlsUpdated) this.onActionControlsUpdated();
     this.scheduleNextAfterC03();
   }
 
   public chooseSleepwalkerDreamC03(dreamId: 'door' | 'boat' | 'window'): void {
     if (this.c03Finished) return;
     this.c03Finished = true;
-    this.currentPhase = 'resolving';
+    this.currentPhase = 'interactive';
     this.c03ChosenDream = dreamId;
     const card = CHAPTER_SCRIPTS.C03.sleepwalk.cards.find(c => c.id === dreamId);
     const line = card ? card.line : '我梦见天上下起了不会过期的糖。';
     this.audio.playSfx('twinkle');
     this.persistence.unlockWrapper('07');
     this.persistence.save();
+    this.ghost.targetFloatOffsetY = 0;
+    this.ghost.setAction('idle');
     this.setGuide(line, 'narration');
-    this.setGhostSpeech(line);
-    if (this.onActionControlsUpdated) this.onActionControlsUpdated();
-    const epoch = this.sceneEpoch;
-    setTimeout(() => {
-      if (this.sceneEpoch !== epoch) return;
-      this.ghost.targetFloatOffsetY = 0;
-      this.ghost.setAction('idle');
-      this.setGuide(CHAPTER_SCRIPTS.C03.sleepwalk.philosophy, 'narration');
-      this.setGhostSpeech(CHAPTER_SCRIPTS.C03.sleepwalk.outroLine);
-      this.scheduleNextAfterC03();
-    }, 1300);
+    this.setGhostSpeech(`${line} ${CHAPTER_SCRIPTS.C03.sleepwalk.outroLine}`);
+    this.scheduleNextAfterC03();
   }
 
   public flipC04Note(): void {

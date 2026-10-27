@@ -37,6 +37,7 @@ class GameApp {
   private modalOverlay: HTMLElement;
   private settingsBtn: HTMLElement;
   private handbookBtn: HTMLElement;
+  private topResetBtn: HTMLElement;
   private transientBubbleEl: HTMLElement;
   private ghostSpeechBubble: HTMLElement;
   private ghostBubbleText: HTMLElement;
@@ -94,6 +95,7 @@ class GameApp {
     this.modalOverlay = document.getElementById('modalOverlay')!;
     this.settingsBtn = document.getElementById('settingsBtn')!;
     this.handbookBtn = document.getElementById('handbookBtn')!;
+    this.topResetBtn = document.getElementById('topResetBtn')!;
     this.transientBubbleEl = document.getElementById('transientBubble') || document.createElement('div');
     this.ghostSpeechBubble = document.getElementById('ghostSpeechBubble')!;
     this.ghostBubbleText = document.getElementById('ghostBubbleText')!;
@@ -272,6 +274,14 @@ class GameApp {
     this.handbookBtn.addEventListener('click', () => {
       this.openHandbookModal();
     });
+
+    // Top Header Reset Button (One-click direct reset)
+    if (this.topResetBtn) {
+      this.topResetBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.confirmAndResetProgress();
+      });
+    }
 
     // Pause on visibility change
     document.addEventListener('visibilitychange', () => {
@@ -464,8 +474,20 @@ class GameApp {
 
     if (onGhost) {
       if (s === 'C01') {
-        this.director.tapC01();
+        if (!this.director.c01SignTapped) {
+          this.director.tapC01();
+          this.renderControlsForScene('C01');
+        } else {
+          this.audio.playSfx('pageFlip');
+          this.director.goToScene('C02');
+        }
         return;
+      } else if (s === 'C02') {
+        if (this.director.c02SelectedCandy) {
+          this.audio.playSfx('pageFlip');
+          this.director.goToScene('C03');
+          return;
+        }
       } else if (s === 'C03') {
         if (!this.director.c03Finished) {
           if (this.ghost.form === 'pumpkin') {
@@ -510,6 +532,22 @@ class GameApp {
           this.director.showTransientBubble('……睡醒了。');
         }
       }
+      return;
+    }
+
+    // General stage tap to turn page when action is complete
+    if (s === 'C01' && this.director.c01SignTapped) {
+      this.audio.playSfx('pageFlip');
+      this.director.goToScene('C02');
+      return;
+    }
+    if (s === 'C02' && this.director.c02SelectedCandy) {
+      this.audio.playSfx('pageFlip');
+      this.director.goToScene('C03');
+      return;
+    }
+    if (s === 'C03' && this.director.c03Finished) {
+      this.director.advanceFromC03();
       return;
     }
 
@@ -627,23 +665,56 @@ class GameApp {
         if (!this.director.c01SignTapped) {
           const tapBtn = document.createElement('button');
           tapBtn.className = 'paper-btn accent';
-          tapBtn.innerText = '轻触半糖 / 招手';
+          tapBtn.innerText = '轻触半糖 / 招手 👋';
           tapBtn.onclick = () => {
             this.director.tapC01();
+            this.renderControlsForScene('C01');
           };
           this.bottomActionRow.appendChild(tapBtn);
+        } else {
+          const nextBtn = document.createElement('button');
+          nextBtn.className = 'paper-btn accent';
+          nextBtn.innerText = '翻向第二页 · 挑选夜色 🍬 →';
+          nextBtn.onclick = () => {
+            this.audio.playSfx('pageFlip');
+            this.director.goToScene('C02');
+          };
+          this.bottomActionRow.appendChild(nextBtn);
         }
         break;
       }
 
       case 'C02': {
         const remainingCount = 5 - this.director.eatenCandiesInRun.length;
-        const currentStep = Math.min(5, this.director.eatenCandiesInRun.length + 1);
+        const currentStep = Math.min(5, this.director.eatenCandiesInRun.length);
+
+        if (this.director.c02SelectedCandy) {
+          const banner = document.createElement('div');
+          banner.className = 'c02-status-banner';
+          banner.innerHTML = `
+            <div class="banner-title">第 ${currentStep} / 5 幕 · 品尝完毕</div>
+            <div class="banner-sub">夜色正在纸页上发酵……</div>
+          `;
+          this.bottomActionRow.appendChild(banner);
+
+          const nextBtn = document.createElement('button');
+          nextBtn.className = 'paper-btn accent';
+          nextBtn.style.width = '100%';
+          nextBtn.style.padding = '12px 16px';
+          nextBtn.style.fontSize = '15px';
+          nextBtn.innerText = '翻页 · 查看小小后遗症 🍂 →';
+          nextBtn.onclick = () => {
+            this.audio.playSfx('pageFlip');
+            this.director.goToScene('C03');
+          };
+          this.bottomActionRow.appendChild(nextBtn);
+          break;
+        }
 
         const banner = document.createElement('div');
         banner.className = 'c02-status-banner';
         banner.innerHTML = `
-          <div class="banner-title">第 ${currentStep} / 5 幕 · 品尝夜色</div>
+          <div class="banner-title">第 ${currentStep + 1} / 5 幕 · 品尝夜色</div>
           <div class="banner-sub">请从余下 ${remainingCount} 颗纸包糖中挑选一颗喂给半糖</div>
         `;
         this.bottomActionRow.appendChild(banner);
