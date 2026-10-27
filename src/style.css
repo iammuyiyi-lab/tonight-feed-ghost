@@ -13,6 +13,7 @@
   --color-accent-red: #B66862;
   --color-ink-brown: #47392F;
   --color-ink-light: #7A6B5D;
+  --narration-safe-bottom: 118px;
 
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
@@ -426,7 +427,7 @@ html, body {
   align-items: center;
   z-index: 40;
   pointer-events: none;
-  padding-bottom: 74px;
+  padding-bottom: var(--narration-safe-bottom, 118px);
   box-sizing: border-box;
 }
 
@@ -1230,7 +1231,7 @@ input:checked + .slider:before {
   width: calc(100% - 36px);
   max-width: 360px;
   position: absolute;
-  bottom: 82px;
+  bottom: var(--narration-safe-bottom, 114px);
   left: 50%;
   transform: translateX(-50%);
   z-index: 35;

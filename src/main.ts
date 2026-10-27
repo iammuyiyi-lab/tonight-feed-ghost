@@ -141,6 +141,7 @@ class GameApp {
         this.subtitleContainer.style.pointerEvents = 'none';
       }
       this.skipHintEl.style.opacity = isDone ? '0' : '0.7';
+      requestAnimationFrame(() => updateNarrationSafeBottom());
     };
 
     // Ghost speech bubble hook (character dialogue)
@@ -155,6 +156,19 @@ class GameApp {
         this.ghostSpeechBubble.classList.remove('visible');
       }
     };
+
+    // Observe subtitle container to dynamically set --narration-safe-bottom
+    const updateNarrationSafeBottom = () => {
+      const rect = this.subtitleContainer.getBoundingClientRect();
+      const height = rect.height || 68;
+      const safeBottom = Math.max(116, Math.round(14 + height + 18));
+      document.documentElement.style.setProperty('--narration-safe-bottom', `${safeBottom}px`);
+    };
+
+    if (typeof ResizeObserver !== 'undefined') {
+      new ResizeObserver(() => updateNarrationSafeBottom()).observe(this.subtitleContainer);
+    }
+    updateNarrationSafeBottom();
 
     // Guide narration / hint hook
     this.director.onGuideUpdated = (text, type) => {
@@ -176,6 +190,7 @@ class GameApp {
         this.subtitleContainer.style.opacity = '0';
         this.subtitleContainer.style.pointerEvents = 'none';
       }
+      requestAnimationFrame(() => updateNarrationSafeBottom());
     };
 
     // Decoupled transient bubble hook (P0-02)
