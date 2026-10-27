@@ -821,7 +821,7 @@ class GameApp {
           if (!this.director.c03Finished) {
             const shakeBtn = document.createElement('button');
             shakeBtn.className = 'paper-btn accent';
-            shakeBtn.innerText = '轻轻摇一下 🧋';
+            shakeBtn.innerText = '帮它吹一口气 💨';
             shakeBtn.onclick = () => {
               this.director.shakeMilkTeaC03();
             };

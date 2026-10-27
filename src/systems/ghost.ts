@@ -106,7 +106,7 @@ export class GhostActor {
         headOffset = 120;
         break;
       case 'milktea':
-        headOffset = 124;
+        headOffset = 132;
         break;
       case 'movie':
         headOffset = 114;
@@ -653,41 +653,44 @@ export class GhostActor {
       }
 
       case 'milktea': {
-        // Bubble tea transparent cup wrapping body
-        ctx.translate(0, 30);
-        ctx.strokeStyle = 'rgba(71, 57, 47, 0.4)';
-        ctx.lineWidth = 2.5;
-
-        // Cup rim & body
-        ctx.strokeRect(-58, -90, 116, 120);
-
-        // Big thick straw
-        ctx.fillStyle = '#ED9A55';
+        // Warm Milk Ghost: Cozy warm milk glow in belly and gentle rising steam curls from head
         ctx.save();
-        ctx.rotate(0.35);
-        ctx.fillRect(-8, -160, 16, 160);
-        ctx.strokeStyle = THEME_COLORS.inkBrown;
-        ctx.strokeRect(-8, -160, 16, 160);
+        ctx.beginPath();
+        ctx.ellipse(0, 15, 38, 28, 0, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(255, 248, 235, 0.7)';
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(215, 185, 155, 0.45)';
+        ctx.lineWidth = 1.8;
+        ctx.stroke();
         ctx.restore();
 
-        // Bobas at bottom or arranged as '?'
-        ctx.fillStyle = '#47392F';
+        const t = this.animTime * 2.8;
+        const waveA = Math.sin(t) * 4;
+        const waveB = Math.cos(t + 0.9) * 4;
+
+        ctx.save();
+        ctx.strokeStyle = 'rgba(210, 190, 170, 0.75)';
+        ctx.lineWidth = 2.2;
+        ctx.lineCap = 'round';
+
+        ctx.beginPath();
+        ctx.moveTo(-16 + waveA, -102);
+        ctx.bezierCurveTo(-22 + waveA, -114, -10 + waveB, -122, -15 + waveA, -132);
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.moveTo(14 + waveB, -100);
+        ctx.bezierCurveTo(20 + waveB, -112, 8 + waveA, -120, 13 + waveB, -130);
+        ctx.stroke();
+
         if (this.showQuestionPearls) {
-          const qPoints = [
-            [-12, -26], [4, -32], [16, -20], [8, -8], [0, 4], [0, 20]
-          ];
-          qPoints.forEach(([bx, by]) => {
-            ctx.beginPath();
-            ctx.arc(bx, by, 7, 0, Math.PI * 2);
-            ctx.fill();
-          });
-        } else {
-          [-36, -18, 0, 18, 36].forEach((bx) => {
-            ctx.beginPath();
-            ctx.arc(bx, 20, 8, 0, Math.PI * 2);
-            ctx.fill();
-          });
+          ctx.beginPath();
+          ctx.ellipse(0, -103, 18, 4, 0, 0, Math.PI * 2);
+          ctx.strokeStyle = 'rgba(210, 175, 140, 0.85)';
+          ctx.lineWidth = 2;
+          ctx.stroke();
         }
+        ctx.restore();
         break;
       }
 

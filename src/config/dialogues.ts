@@ -356,21 +356,24 @@ export const CANDY_RESPONSES: Record<CandyType, CandyFeedbackConfig> = {
   },
   milk: {
     id: 'milk',
-    name: '奶糖',
+    name: '牛奶糖',
     formId: 'milktea',
-    firstDialogue: ['我身体里出现了标点。', '希望不是省略号。'],
-    repeatDialogues: [
-      ['原来标点也会沉底。'],
-      ['我喝到了一小段童年。'],
-      ['怎么这么像一张旧毛毯。'],
-      ['胃里像有一杯加了温的晚安。'],
+    firstDialogue: [
+      '这层透明的薄纸也能吃吗？（嚼嚼）我已经咽下去了。',
+      '它化成了一小杯热牛奶。我整只鬼都变软了……像一条旧毛毯。',
     ],
-    rapidDialogue: '你在冲泡我吗？',
+    repeatDialogues: [
+      ['坚硬是给白天看的，夜里只适合融化。'],
+      ['我闻到了旧毛毯和童年的味道。'],
+      ['身体里暖融融的，好想直接倒在书页里睡着。'],
+      ['原来幽灵被热牛奶融化的时候，是不会喊救命的。'],
+    ],
+    rapidDialogue: '你在熬炼乳吗？停一停，我要糊底了！',
     animationId: 'milk-translucent',
     expressionId: 'soft',
     soundId: 'gasp',
     transitionId: 'milktea-shift',
-    souvenirQuote: '愿你常有温热的事物，比如一杯奶茶，比如一段发呆。',
+    souvenirQuote: '愿你常有温热的事物，比如一杯热牛奶，比如一段发呆。',
   },
   star: {
     id: 'star',
@@ -513,8 +516,8 @@ export const CHAPTER_SCRIPTS = {
         '说明书早就过期了……我的引力好像加重了。',
       ],
       milk: [
-        '等等。牛奶和红茶在身体里晃荡……',
-        '腹部好像多出了几个未说完的标点。',
+        '糟糕，这颗糖有一点副作用……',
+        '整颗糖全化开了，我快要变成一滩液态的困意了。',
       ],
       star: [
         '微光落下来了。墨水正在喉咙里化开。',
@@ -542,14 +545,14 @@ export const CHAPTER_SCRIPTS = {
       souvenirQuote: '落叶落下的速度，恰好足够想通一件心事。',
     },
     milktea: {
-      prompt: '轻轻摇一下，把腹中的标点晃匀。',
-      btnShake: '轻轻摇一下',
+      prompt: '它被热牛奶泡得暖呼呼的，整只鬼快要融化了。快帮它吹吹凉。',
+      btnShake: '帮它吹一口气 💨',
       lines: [
-        '为什么它们停成了一个问号？',
-        '可能它们也对未来感到困惑。',
+        '呼……好险。',
+        '再不吹凉，我头顶就要结出一层可以撕下来的薄奶皮了。',
       ],
-      philosophy: '温柔大概就是：在所有人都急着下结论的深夜，允许你留一个长长的省略号。',
-      souvenirQuote: '未说出口的那些半句话，最终都变成了夜空的留白。',
+      philosophy: '温柔大概就是：在所有人都要你硬撑的深夜，允许你像温牛奶一样软趴趴地摊开，不必随时保持体面。',
+      souvenirQuote: '今晚的世界太坚硬，幸好你给了我一块温软的糖。',
     },
     poet: {
       prompt: '挑一个词，给今晚写下一行绝版诗。',

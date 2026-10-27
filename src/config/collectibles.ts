@@ -21,9 +21,9 @@ export const CANDY_WRAPPERS: CollectibleWrapper[] = [
   },
   {
     id: '04',
-    title: '珍珠和逗号',
-    text: '沉默不是空白。它只是还没想好标点。',
-    source: '奶茶形态专属',
+    title: '关于融化与体面',
+    text: '坚硬是给白天看的，夜里只适合像一块糖一样慢慢融化。',
+    source: '温牛奶形态专属',
   },
   {
     id: '05',

@@ -281,8 +281,8 @@ assert.strictEqual(CANDY_RESPONSES.pumpkin.rapidDialogue, '你在培育我吗？
 assert.strictEqual(CANDY_RESPONSES.pumpkin.firstDialogue[0], '我好像成熟了。');
 assert.strictEqual(CANDY_RESPONSES.pumpkin.firstDialogue[1], '但只是植物学意义上的。');
 // 验证奶糖专属台词
-assert.strictEqual(CANDY_RESPONSES.milk.firstDialogue[0], '我身体里出现了标点。');
-assert.strictEqual(CANDY_RESPONSES.milk.firstDialogue[1], '希望不是省略号。');
+assert.strictEqual(CANDY_RESPONSES.milk.firstDialogue[0], '这层透明的薄纸也能吃吗？（嚼嚼）我已经咽下去了。');
+assert.strictEqual(CANDY_RESPONSES.milk.firstDialogue[1], '它化成了一小杯热牛奶。我整只鬼都变软了……像一条旧毛毯。');
 // 验证星星糖专属台词
 assert.strictEqual(CANDY_RESPONSES.star.firstDialogue[0], '我突然有话要说。');
 assert.strictEqual(CANDY_RESPONSES.star.firstDialogue[1], '但这通常不是好事。');
@@ -526,24 +526,24 @@ director.feedCandyInC02('milk');
 assert.strictEqual(director.currentScene, 'C02', '喂糖后必须停留在 C02，绝不自动跳转');
 assert.strictEqual(director.c02SelectedCandy, 'milk', '当前选糖状态必须锁定在 milk');
 assert.strictEqual(director.c02DialogueStep, 0, '第 1 步台词');
-assert.strictEqual(director.ghostSpeech, '我身体里出现了标点。', '第 1 步台词必须为初尝对白');
+assert.strictEqual(director.ghostSpeech, '这层透明的薄纸也能吃吗？（嚼嚼）我已经咽下去了。', '第 1 步台词必须为初尝对白');
 
 // 玩家点击按钮交互切换至第 2 步台词
 director.nextC02DialogueStep();
 assert.strictEqual(director.c02DialogueStep, 1, '推进到第 2 步台词');
-assert.strictEqual(director.ghostSpeech, '希望不是省略号。', '第 2 步台词必须为补充对白');
+assert.strictEqual(director.ghostSpeech, '它化成了一小杯热牛奶。我整只鬼都变软了……像一条旧毛毯。', '第 2 步台词必须为补充对白');
 
 // 玩家点击按钮交互切换至第 3 步副作用异变台词
 director.nextC02DialogueStep();
 assert.strictEqual(director.c02DialogueStep, 2, '推进到第 3 步副作用台词');
-assert.ok(director.ghostSpeech.includes('问号') || director.ghostSpeech.includes('标点'), '第 3 步必须为后遗症异变台词');
+assert.ok(director.ghostSpeech.includes('融化') || director.ghostSpeech.includes('困意'), '第 3 步必须为后遗症异变台词');
 
 // 玩家点击按钮交互翻页
 director.nextC02DialogueStep();
 assert.strictEqual(director.currentScene, 'C03', '最后一步点击后进入 C03');
 director.shakeMilkTeaC03();
 assert.strictEqual(director.c03Finished, true);
-assert.ok(director.ghostSpeech.includes('问号'), 'C03 互动后角色台词必须完好保留在气泡中');
+assert.ok(director.ghostSpeech.includes('奶皮'), 'C03 互动后角色台词必须完好保留在气泡中');
 assert.ok(director.guideText.includes('温柔'), 'C03 旁白栏必须完好展示哲理叙事');
 assert.strictEqual(director.currentScene, 'C03', 'C03 互动后绝不得倒计时自动跳关');
 

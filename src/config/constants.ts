@@ -117,10 +117,10 @@ export const FORMS_META: Record<GhostFormId, { name: string; title: string; desc
     icon: '🎃',
   },
   milktea: {
-    name: '奶茶幽灵',
-    title: '流体文学与标点珍珠',
-    desc: '漂浮在纸杯液体中，珍珠是它的哲学标点。',
-    icon: '🧋',
+    name: '温牛奶幽灵',
+    title: '融化的甜与晚安热牛奶',
+    desc: '被方正的牛奶糖彻底融化，散发着安眠曲般的暖甜奶香。',
+    icon: '🥛',
   },
   poet: {
     name: '诗人幽灵',

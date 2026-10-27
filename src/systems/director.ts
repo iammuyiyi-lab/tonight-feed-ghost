@@ -428,7 +428,7 @@ export class SceneDirector {
         } else if (form === 'milktea') {
           this.ghost.showQuestionPearls = false;
           this.setGuide(CHAPTER_SCRIPTS.C03.milktea.prompt, 'hint');
-          this.setGhostSpeech('珍珠好像沉底了……留了一个未完成的悬念。');
+          this.setGhostSpeech('不要戳我，我现在只有两分硬度……吹一口气，或许还能抢救一下。');
         } else if (form === 'poet') {
           this.poetGame.reset();
           this.setGuide(CHAPTER_SCRIPTS.C03.poet.prompt, 'hint');
@@ -854,9 +854,9 @@ export class SceneDirector {
         '秋意在纸页上徐徐发酵，准备翻向下一页。',
       ],
       milk: [
-        '奶香在纸页间漫开，半糖的身体变得半透明。',
-        '腹部浮现出几颗小珍珠，留下了未尽的留白。',
-        '红茶与珍珠正在杯底沉淀，准备翻向下一页。',
+        '你递给它一颗方方正正、裹着薄糯米纸的牛奶糖。',
+        '奶糖在它肚子里慢吞吞地化开，泛起一层暖融融的乳白微光。',
+        '温热的奶香在纸页间漫开，半糖舒服得快要融化了，准备翻向下一页。',
       ],
       star: [
         '微光在纸面上泛起，一滴墨水落在了半糖头顶。',
@@ -1013,6 +1013,8 @@ export class SceneDirector {
     this.c03Finished = true;
     this.currentPhase = 'interactive';
     this.ghost.showQuestionPearls = true;
+    this.ghost.expression = 'soft';
+    this.ghost.setAction('bounce', 0.8);
     this.audio.playSfx('boop');
     this.persistence.unlockWrapper('04');
     this.persistence.save();
