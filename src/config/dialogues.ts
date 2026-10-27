@@ -577,9 +577,9 @@ export const CHAPTER_SCRIPTS = {
     },
     movie: {
       prompt: '给它打个板，开启人生第一幕。',
-      btnSlate: '咔！开拍',
-      titleCard: '《在被遗忘的第25格里》',
-      line: '很好。本片到此杀青。',
+      btnSlate: '咔！开拍 🎬',
+      titleCard: '《一秒钟的黑白长镜头》',
+      line: '很好。一秒钟长镜头，本片到此杀青。',
       philosophy: '生活如果是一部未剪辑的长镜头，那些看似枯燥的留白，才是我们真正活着的证据。',
       souvenirQuote: '最好的剧情，往往发生在一句话和下一句话的沉默之间。',
     },

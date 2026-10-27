@@ -894,9 +894,9 @@ class GameApp {
             const titleCard = document.createElement('div');
             titleCard.className = 'movie-title-card-overlay';
             titleCard.innerHTML = `
-              <div class="movie-film-banner">FILM TAKE #1</div>
-              <div class="movie-film-title">《在被遗忘的第25格里》</div>
-              <div class="movie-film-sub">没有排练 · 自然夜色出品</div>
+              <div class="movie-film-banner">场次 01 · 镜次 01 🎬</div>
+              <div class="movie-film-title">《一秒钟的黑白长镜头》</div>
+              <div class="movie-film-sub">零预算 · 无台词 · 纯天然夜色出品</div>
             `;
             this.minigameOverlay.appendChild(titleCard);
 

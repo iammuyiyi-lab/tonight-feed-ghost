@@ -1199,9 +1199,9 @@ input:checked + .slider:before {
 
 .movie-film-banner {
   font-size: 11px;
-  letter-spacing: 2px;
+  letter-spacing: 1px;
   color: #ED9A55;
-  font-family: monospace;
+  font-weight: bold;
 }
 
 .movie-film-title {
