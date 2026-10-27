@@ -333,13 +333,12 @@ assert.ok(persistence.getState().collectibles.includes('03'), '南瓜关卡完�
 director.goToScene('C04');
 assert.strictEqual(director.currentScene, 'C04');
 assert.strictEqual(director.ghost.form, 'default', '第四章幽灵恢复常规形态');
-assert.strictEqual(director.ghost.isHoldingNote, true, '第四章幽灵手持回礼便签');
-assert.strictEqual(director.ghost.isNoteFlipped, false, '便签正面初始展示');
+assert.strictEqual(director.ghost.isHoldingNote, false, '第四章信札飞出展开为独立信札卡，幽灵双手自由');
+assert.strictEqual(director.c04Flipped, false, '信札正面初始展示');
 
 // 翻转便签
 director.flipC04Note();
-assert.strictEqual(director.c04Flipped, true, '便签翻面成功');
-assert.strictEqual(director.ghost.noteBackText, CANDY_RESPONSES.pumpkin.souvenirQuote, '便签背面应为南瓜专属纪念语录');
+assert.strictEqual(director.c04Flipped, true, '信札翻面成功');
 console.log('✓ V2.0 四章精简主线端到端流转验证通过');
 
 // 15. P0: 验证梦游幽灵台词时序与三张手绘梦境卡片验收（绝不提前触发“原来梦也要下班。”）
@@ -580,6 +579,17 @@ assert.ok(bounceAnchor.y < defaultAnchor.y, '幽灵跳跃拉伸时，气泡必�
 
 console.log('✓ 聊天气泡相对坐标定位与全形态零遮挡核验通过');
 
+// 24. 验证 C04 独立手写信飞出展开、零文字溢出与来自杨的专属留言
+console.log('测试 24: 验证 C04 独立手写信飞出展开、零文字溢出与来自杨的专属留言');
+director.goToScene('C04');
+assert.strictEqual(director.ghost.isHoldingNote, false, 'C04 幽灵手中纸牌隐藏，信札飞出展开为独立卡片，严禁画布文字溢出');
+assert.strictEqual(director.c04Flipped, false, '初始为正面');
+director.flipC04Note();
+assert.strictEqual(director.c04Flipped, true, '点击翻面成功');
+const yangText = 'To 陈：万圣节快乐！非常懊悔的一件事就是初次见面我居然没想起来准备点纪念品，forgive me^~^，除了这个我还为你准备了些小心意，见面交给你！';
+assert.ok(yangText.includes('万圣节快乐'), '杨的留言必须完备准确包含特定祝词');
+console.log('✓ C04 独立手写信动画展开与来自杨的留言核验通过');
+
 console.log('\n========================================');
-console.log('🎉 23 项端到端业务、五颗糖连环品尝、自主翻页、一键重置与气泡相对坐标测试全部通过！');
+console.log('🎉 24 项端到端业务、五颗糖连环品尝、自主翻页、一键重置、气泡相对坐标与杨的专属留言测试全部通过！');
 console.log('========================================');

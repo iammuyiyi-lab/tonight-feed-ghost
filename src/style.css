@@ -425,6 +425,10 @@ html, body {
   justify-content: center;
   align-items: center;
   z-index: 40;
+  pointer-events: none;
+}
+
+.minigame-overlay > * {
   pointer-events: auto;
 }
 
@@ -1214,4 +1218,184 @@ input:checked + .slider:before {
 .movie-film-sub {
   font-size: 12px;
   color: #AAA;
+}
+
+
+/* ================= C04 Animated Handwritten Letter Card ================= */
+.c04-letter-container {
+  perspective: 1000px;
+  -webkit-perspective: 1000px;
+  width: calc(100% - 36px);
+  max-width: 360px;
+  position: absolute;
+  bottom: 82px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 35;
+  pointer-events: auto;
+  animation: letterFlyAndExpand 0.65s cubic-bezier(0.2, 0.9, 0.3, 1) forwards;
+}
+
+@keyframes letterFlyAndExpand {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -100px) scale(0.4);
+    width: 140px;
+  }
+  60% {
+    opacity: 1;
+    transform: translate(-50%, -8px) scale(1.02);
+    width: calc(100% - 36px);
+  }
+  100% {
+    opacity: 1;
+    transform: translate(-50%, 0) scale(1);
+    width: calc(100% - 36px);
+  }
+}
+
+.c04-letter-card {
+  position: relative;
+  width: 100%;
+  min-height: 88px;
+  transform-style: preserve-3d;
+  -webkit-transform-style: preserve-3d;
+  transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.c04-letter-card.flipped {
+  transform: rotateY(180deg);
+}
+
+.letter-face {
+  position: absolute;
+  inset: 0;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  background-color: #FAF3E3;
+  border: 1.8px solid var(--color-ink-brown);
+  border-radius: 8px;
+  padding: 10px 14px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  box-shadow: 2px 4px 12px rgba(71, 57, 47, 0.16);
+  box-sizing: border-box;
+}
+
+.letter-front {
+  background-color: #FAF3E3;
+}
+
+.letter-back {
+  transform: rotateY(180deg);
+  background-color: #FFF9ED;
+}
+
+.letter-tape {
+  position: absolute;
+  top: -7px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 32px;
+  height: 12px;
+  background: rgba(210, 180, 140, 0.6);
+  border-radius: 2px;
+}
+
+.letter-title {
+  font-size: 13px;
+  font-weight: bold;
+  color: #8C3B2B;
+  letter-spacing: 0.8px;
+  margin-bottom: 4px;
+}
+
+.letter-body {
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--color-ink-brown);
+  font-family: "PingFang SC", "Microsoft YaHei", serif;
+  word-break: break-word;
+}
+
+.letter-flip-tip {
+  font-size: 11px;
+  color: var(--color-ink-light);
+  margin-top: 4px;
+  opacity: 0.7;
+}
+
+/* ================= Yang Message Modal ================= */
+.yang-message-modal {
+  background: #FFFDF9;
+  border: 2px solid var(--color-ink-brown);
+  border-radius: 12px;
+  padding: 24px 22px 20px;
+  width: 90%;
+  max-width: 360px;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.45), 2px 3px 0 var(--color-ink-brown);
+  position: relative;
+  animation: modalPopIn 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+@keyframes modalPopIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.yang-modal-stamp {
+  position: absolute;
+  top: 14px;
+  right: 16px;
+  font-size: 11px;
+  font-weight: bold;
+  color: #ED9A55;
+  border: 1.5px dashed #ED9A55;
+  padding: 2px 8px;
+  border-radius: 4px;
+  transform: rotate(3deg);
+}
+
+.yang-modal-header {
+  font-size: 18px;
+  font-weight: bold;
+  color: #8C3B2B;
+  letter-spacing: 1px;
+  font-family: "PingFang SC", "Microsoft YaHei", serif;
+}
+
+.yang-modal-body {
+  font-size: 15px;
+  line-height: 1.7;
+  color: var(--color-ink-brown);
+  font-family: "PingFang SC", "Microsoft YaHei", serif;
+  letter-spacing: 0.5px;
+  word-break: break-word;
+}
+
+.yang-modal-signature {
+  text-align: right;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-ink-light);
+  font-style: italic;
+}
+
+.yang-close-btn {
+  width: 100%;
 }

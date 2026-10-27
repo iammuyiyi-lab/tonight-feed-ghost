@@ -448,11 +448,11 @@ export class SceneDirector {
 
       case 'C04': {
         this.ghost.form = 'default';
-        this.ghost.setAction('idle');
-        this.ghost.isHoldingNote = true;
-        this.ghost.noteFrontText = CHAPTER_SCRIPTS.C04.noteFrontLines.join(' ');
-        const souvenir = state.chosenQuote || CANDY_RESPONSES[state.mainFormThisRun === 'pumpkin' ? 'pumpkin' : state.mainFormThisRun === 'milktea' ? 'milk' : state.mainFormThisRun === 'movie' ? 'blackSugar' : state.mainFormThisRun === 'sleepwalk' ? 'cloud' : 'star'].souvenirQuote;
-        this.ghost.noteBackText = souvenir;
+        this.ghost.setAction('bounce', 0.8);
+        this.ghost.expression = 'joy';
+        this.ghost.isHoldingNote = false;
+        this.ghost.noteFrontText = '';
+        this.ghost.noteBackText = '';
         this.ghost.isNoteFlipped = false;
         this.c04Flipped = false;
         this.currentPhase = 'interactive';

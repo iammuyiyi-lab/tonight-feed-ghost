@@ -976,6 +976,47 @@ class GameApp {
       }
 
       case 'C04': {
+        // 1. Mount animated handwritten letter card above narration bar
+        let letterContainer = this.minigameOverlay.querySelector('.c04-letter-container') as HTMLElement;
+        if (!letterContainer) {
+          letterContainer = document.createElement('div');
+          letterContainer.className = 'c04-letter-container';
+          letterContainer.innerHTML = `
+            <div class="c04-letter-card ${this.director.c04Flipped ? 'flipped' : ''}">
+              <div class="letter-face letter-front">
+                <div class="letter-tape"></div>
+                <div class="letter-title">《深夜饲养手札 · 终章》</div>
+                <div class="letter-body">今夜宜喂鬼。也宜对自己稍微好一点。</div>
+                <div class="letter-flip-tip">（轻触信札或下方按钮翻面 ↩）</div>
+              </div>
+              <div class="letter-face letter-back">
+                <div class="letter-tape"></div>
+                <div class="letter-title">《信札背面 · 回礼》</div>
+                <div class="letter-body">
+                  所有尝过的滋味，最后都会变成骨头里的引力。<br>
+                  天亮之后，即便做回普通人，也别忘了今晚有一只鬼，曾认真收下过你的甜意。
+                </div>
+                <div class="letter-flip-tip">（轻触信札或下方按钮翻回正面 ↩）</div>
+              </div>
+            </div>
+          `;
+          letterContainer.onclick = (e) => {
+            e.stopPropagation();
+            this.director.flipC04Note();
+          };
+          this.minigameOverlay.appendChild(letterContainer);
+        } else {
+          const cardEl = letterContainer.querySelector('.c04-letter-card');
+          if (cardEl) {
+            if (this.director.c04Flipped) {
+              cardEl.classList.add('flipped');
+            } else {
+              cardEl.classList.remove('flipped');
+            }
+          }
+        }
+
+        // 2. Bottom Action Buttons: Flip and Message from Yang
         const row = document.createElement('div');
         row.style.display = 'flex';
         row.style.flexDirection = 'column';
@@ -990,36 +1031,14 @@ class GameApp {
         };
         row.appendChild(flipBtn);
 
-        const certBtn = document.createElement('button');
-        certBtn.className = 'paper-btn accent';
-        certBtn.innerText = '领取《深夜守夜人 · 终身荣誉证书》 🔖';
-        certBtn.onclick = () => {
-          this.showCertificateModal();
+        const yangBtn = document.createElement('button');
+        yangBtn.className = 'paper-btn accent';
+        yangBtn.innerText = '来自杨的留言 💌';
+        yangBtn.onclick = () => {
+          this.showYangMessageModal();
         };
-        row.appendChild(certBtn);
+        row.appendChild(yangBtn);
 
-        const actionGroup = document.createElement('div');
-        actionGroup.style.display = 'flex';
-        actionGroup.style.gap = '8px';
-        actionGroup.style.justifyContent = 'center';
-
-        const freeModeBtn = document.createElement('button');
-        freeModeBtn.className = 'paper-btn';
-        freeModeBtn.innerText = '夜班自由喂养 👻';
-        freeModeBtn.onclick = () => {
-          this.director.goToScene('S27');
-        };
-        actionGroup.appendChild(freeModeBtn);
-
-        const restartBtn = document.createElement('button');
-        restartBtn.className = 'paper-btn';
-        restartBtn.innerText = '从头重温连环册 ↺';
-        restartBtn.onclick = () => {
-          this.director.startNewRun();
-        };
-        actionGroup.appendChild(restartBtn);
-
-        row.appendChild(actionGroup);
         this.bottomActionRow.appendChild(row);
         break;
       }
@@ -2111,6 +2130,34 @@ class GameApp {
     this.modalOverlay.querySelector('.close-card-btn')?.addEventListener('click', () => {
       this.modalOverlay.style.display = 'none';
     });
+  }
+
+  private showYangMessageModal(): void {
+    this.audio.playSfx('pageFlip');
+    this.modalOverlay.style.display = 'flex';
+    this.modalOverlay.innerHTML = `
+      <div class="yang-message-modal">
+        <div class="yang-modal-stamp">🎃 10.31 万圣夜</div>
+        <div class="yang-modal-header">To 陈：</div>
+        <div class="yang-modal-body">
+          万圣节快乐！非常懊悔的一件事就是初次见面我居然没想起来准备点纪念品，forgive me^~^，除了这个我还为你准备了些小心意，见面交给你！
+        </div>
+        <div class="yang-modal-signature">—— 来自杨的留言 💌</div>
+        <div class="yang-modal-footer">
+          <button class="paper-btn accent yang-close-btn">收下心意 🧡</button>
+        </div>
+      </div>
+    `;
+
+    this.modalOverlay.querySelector('.yang-close-btn')?.addEventListener('click', () => {
+      this.modalOverlay.style.display = 'none';
+    });
+
+    this.modalOverlay.onclick = (e) => {
+      if (e.target === this.modalOverlay) {
+        this.modalOverlay.style.display = 'none';
+      }
+    };
   }
 
   private showCertificateModal(): void {
