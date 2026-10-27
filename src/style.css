@@ -155,9 +155,9 @@ html, body {
 /* ================= Subtitle & Speech Zone ================= */
 .subtitle-container {
   position: absolute;
-  top: calc(60px + var(--safe-top));
-  left: 24px;
-  right: 24px;
+  top: 14px;
+  left: 20px;
+  right: 20px;
   z-index: 30;
   display: flex;
   flex-direction: column;
@@ -212,8 +212,10 @@ html, body {
 .bottom-action-row {
   width: 100%;
   display: flex;
+  flex-wrap: wrap;
   justify-content: center;
-  gap: 12px;
+  align-items: center;
+  gap: 8px;
 }
 
 /* Primary Paper Bookmark Button */
@@ -402,6 +404,23 @@ html, body {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+/* Reduced Motion Settings */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+.reduce-motion * {
+  transition: none !important;
+  animation: none !important;
 }
 
 .handbook-header, .settings-header {

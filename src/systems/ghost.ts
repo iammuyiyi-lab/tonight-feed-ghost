@@ -16,6 +16,7 @@ export class GhostActor {
   public targetScaleY: number = 1.0;
   public rotation: number = 0; // radians
   public targetRotation: number = 0;
+  public reduceMotion: boolean = false;
 
   // Eye look target (normalized -1 to 1)
   public lookX: number = 0;
@@ -214,23 +215,23 @@ export class GhostActor {
     }
 
     // Spring interpolation for physics
-    const spring = 8.0 * dt;
+    const spring = (this.reduceMotion ? 14.0 : 8.0) * dt;
     this.scaleX += (this.targetScaleX - this.scaleX) * Math.min(1, spring);
     this.scaleY += (this.targetScaleY - this.scaleY) * Math.min(1, spring);
-    this.rotation += (this.targetRotation - this.rotation) * Math.min(1, spring);
+    this.rotation += ((this.reduceMotion ? 0 : this.targetRotation) - this.rotation) * Math.min(1, spring);
     this.lookX += (this.targetLookX - this.lookX) * Math.min(1, 10 * dt);
     this.lookY += (this.targetLookY - this.lookY) * Math.min(1, 10 * dt);
     this.mouthOpen += (this.targetMouthOpen - this.mouthOpen) * Math.min(1, 12 * dt);
 
     // Subtle breathing cycle when idle
     if (this.action === 'idle') {
-      const breath = Math.sin(this.animTime * 2.2);
+      const breath = this.reduceMotion ? 0 : Math.sin(this.animTime * 2.2);
       this.scaleY = 1.0 + breath * 0.025;
       this.scaleX = 1.0 - breath * 0.015;
     } else if (this.action === 'chew') {
-      const chewCycle = Math.sin(this.animTime * 12);
+      const chewCycle = Math.sin(this.animTime * (this.reduceMotion ? 6 : 12));
       this.mouthOpen = 0.2 + chewCycle * 0.15;
-      this.scaleY = 0.98 + chewCycle * 0.03;
+      this.scaleY = 0.98 + (this.reduceMotion ? 0 : chewCycle * 0.03);
     }
   }
 

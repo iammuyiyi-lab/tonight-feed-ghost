@@ -6,6 +6,7 @@ export interface PointerState {
   isDown: boolean;
   isDragging: boolean;
   heldDuration: number;
+  pointerId: number | null;
 }
 
 export class InputRouter {
@@ -17,6 +18,7 @@ export class InputRouter {
     isDown: false,
     isDragging: false,
     heldDuration: 0,
+    pointerId: null,
   };
 
   private targetElement: HTMLElement;
@@ -30,6 +32,7 @@ export class InputRouter {
   public onDragStart: ((x: number, y: number) => void) | null = null;
   public onDragMove: ((x: number, y: number, dx: number, dy: number) => void) | null = null;
   public onDragEnd: ((x: number, y: number) => void) | null = null;
+  public onDragCancel: (() => void) | null = null;
   public onPointerMove: ((x: number, y: number) => void) | null = null;
 
   constructor(target: HTMLElement) {
@@ -43,7 +46,7 @@ export class InputRouter {
     el.addEventListener('pointerdown', this.handlePointerDown.bind(this), { passive: false });
     window.addEventListener('pointermove', this.handlePointerMove.bind(this), { passive: false });
     window.addEventListener('pointerup', this.handlePointerUp.bind(this), { passive: false });
-    window.addEventListener('pointercancel', this.handlePointerUp.bind(this), { passive: false });
+    window.addEventListener('pointercancel', this.handlePointerCancel.bind(this), { passive: false });
   }
 
   private getCanvasCoords(e: PointerEvent): { x: number; y: number } {
@@ -55,15 +58,25 @@ export class InputRouter {
   }
 
   private handlePointerDown(e: PointerEvent): void {
+    // Only accept single primary pointer at a time
+    if (this.pointer.isDown) return;
+
     const coords = this.getCanvasCoords(e);
     this.pointer.isDown = true;
     this.pointer.isDragging = false;
+    this.pointer.pointerId = e.pointerId;
     this.pointer.x = coords.x;
     this.pointer.y = coords.y;
     this.pointer.startX = coords.x;
     this.pointer.startY = coords.y;
     this.pointer.heldDuration = 0;
     this.longPressTriggered = false;
+
+    try {
+      this.targetElement.setPointerCapture(e.pointerId);
+    } catch {
+      // Ignored if capture unsupported
+    }
 
     // Start 600ms long press timer
     if (this.longPressTimer !== null) clearTimeout(this.longPressTimer);
@@ -79,14 +92,16 @@ export class InputRouter {
 
   private handlePointerMove(e: PointerEvent): void {
     const coords = this.getCanvasCoords(e);
-    this.pointer.x = coords.x;
-    this.pointer.y = coords.y;
 
+    // Global eye look-at tracker works with cursor or pointer
     if (this.onPointerMove) {
       this.onPointerMove(coords.x, coords.y);
     }
 
-    if (!this.pointer.isDown) return;
+    if (!this.pointer.isDown || this.pointer.pointerId !== e.pointerId) return;
+
+    this.pointer.x = coords.x;
+    this.pointer.y = coords.y;
 
     const dx = coords.x - this.pointer.startX;
     const dy = coords.y - this.pointer.startY;
@@ -111,8 +126,18 @@ export class InputRouter {
   }
 
   private handlePointerUp(e: PointerEvent): void {
-    if (!this.pointer.isDown) return;
+    if (!this.pointer.isDown || (this.pointer.pointerId !== null && this.pointer.pointerId !== e.pointerId)) return;
+
+    try {
+      if (this.pointer.pointerId !== null) {
+        this.targetElement.releasePointerCapture(this.pointer.pointerId);
+      }
+    } catch {
+      // Ignored
+    }
+
     this.pointer.isDown = false;
+    this.pointer.pointerId = null;
 
     if (this.longPressTimer !== null) {
       clearTimeout(this.longPressTimer);
@@ -131,6 +156,32 @@ export class InputRouter {
       if (this.onTap) {
         this.onTap(coords.x, coords.y);
       }
+    }
+  }
+
+  private handlePointerCancel(e: PointerEvent): void {
+    if (!this.pointer.isDown || (this.pointer.pointerId !== null && this.pointer.pointerId !== e.pointerId)) return;
+
+    try {
+      if (this.pointer.pointerId !== null) {
+        this.targetElement.releasePointerCapture(this.pointer.pointerId);
+      }
+    } catch {
+      // Ignored
+    }
+
+    this.pointer.isDown = false;
+    this.pointer.pointerId = null;
+    this.pointer.isDragging = false;
+
+    if (this.longPressTimer !== null) {
+      clearTimeout(this.longPressTimer);
+      this.longPressTimer = null;
+    }
+
+    // Clean rollback on cancel (e.g. system gesture interrupt)
+    if (this.onDragCancel) {
+      this.onDragCancel();
     }
   }
 

@@ -13,17 +13,19 @@ export class AudioDirector {
 
   constructor() {
     // Lazy initialize on first interaction
-    document.addEventListener('visibilitychange', () => {
-      if (document.hidden) {
-        if (this.ctx && this.ctx.state === 'running') {
-          this.ctx.suspend();
+    if (typeof document !== 'undefined') {
+      document.addEventListener('visibilitychange', () => {
+        if (document.hidden) {
+          if (this.ctx && this.ctx.state === 'running') {
+            this.ctx.suspend();
+          }
+        } else {
+          if (this.ctx && this.ctx.state === 'suspended' && this.isUnlocked) {
+            this.ctx.resume();
+          }
         }
-      } else {
-        if (this.ctx && this.ctx.state === 'suspended' && this.isUnlocked) {
-          this.ctx.resume();
-        }
-      }
-    });
+      });
+    }
   }
 
   public async unlock(): Promise<boolean> {

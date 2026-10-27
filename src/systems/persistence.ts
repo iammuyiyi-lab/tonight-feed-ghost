@@ -110,7 +110,9 @@ export class PersistenceSystem {
 
     // Always mirror to localStorage as an immediate backup
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(this.state));
+      if (typeof localStorage !== 'undefined') {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(this.state));
+      }
     } catch (e) {
       console.warn('LocalStorage save failed:', e);
     }
@@ -162,10 +164,12 @@ export class PersistenceSystem {
 
   private loadFromLocalStorage(): void {
     try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        this.state = this.sanitizeState(parsed);
+      if (typeof localStorage !== 'undefined') {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          this.state = this.sanitizeState(parsed);
+        }
       }
     } catch (err) {
       console.warn('Corrupted localStorage data, resetting to initial state', err);

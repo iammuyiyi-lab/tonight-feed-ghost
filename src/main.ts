@@ -21,7 +21,7 @@ class GameApp {
   private director: SceneDirector;
   private input: InputRouter;
   private handbookView: HandbookView;
-  private qaView: QADevView;
+  private qaView: QADevView | null = null;
 
   // DOM elements
   private canvas: HTMLCanvasElement;
@@ -37,19 +37,19 @@ class GameApp {
   private settingsBtn: HTMLElement;
   private handbookBtn: HTMLElement;
 
-  // Dragging candy state in S04 / S06 / S27
+  // Dragging candy state
   private draggingCandy: CandyType | null = null;
   private candyDragX: number = 0;
   private candyDragY: number = 0;
   private candyTeaseTracker: { approached: boolean; count: number } = { approached: false, count: 0 };
 
+  // S04 Trial Candy screen position
+  private s04CandyPos = { x: 180, y: 380 };
+
   // S02 Moon Long-Press state
   private moonX: number = 0;
   private moonY: number = 0;
   private moonRadius: number = 32;
-
-  // S02 Bulge tap state
-  private bulgeClicked: boolean = false;
 
   // Canvas size and animation
   private dpr: number = 1;
@@ -62,7 +62,7 @@ class GameApp {
     this.audio = new AudioDirector();
     this.ghost = new GhostActor();
     this.director = new SceneDirector(this.persistence, this.audio, this.ghost);
-    this.handbookView = new HandbookView(this.persistence.getState());
+    this.handbookView = new HandbookView(this.persistence);
 
     // Fetch DOM references
     this.canvas = document.getElementById('gameCanvas') as HTMLCanvasElement;
@@ -79,7 +79,6 @@ class GameApp {
     this.handbookBtn = document.getElementById('handbookBtn')!;
 
     this.input = new InputRouter(this.stageContainer);
-    this.qaView = new QADevView(this.persistence, (scene) => this.director.goToScene(scene));
 
     this.init();
   }
@@ -89,9 +88,18 @@ class GameApp {
     this.resizeCanvas();
     window.addEventListener('resize', () => this.resizeCanvas());
 
+    // Apply reduced motion preference
+    this.applyMotionPreference();
+
     this.bindDOMEvents();
     this.bindInputEvents();
-    this.qaView.init();
+
+    // P1-06: Only initialize QA Dev View in development mode or via ?qa=1 query param
+    const isDev = (import.meta as any).env?.DEV || window.location.search.includes('qa=1');
+    if (isDev) {
+      this.qaView = new QADevView(this.persistence, (scene) => this.director.goToScene(scene));
+      this.qaView.init();
+    }
 
     // Scene changed hook
     this.director.onSceneChanged = (scene) => {
@@ -105,12 +113,43 @@ class GameApp {
       this.skipHintEl.style.opacity = isDone ? '0' : '0.7';
     };
 
-    // Start with S00 or last checkpoint
-    this.director.goToScene('S00');
+    // P0-02: Check saved checkpoint on startup
+    this.handleStartupCheckpoint();
 
     // Start Game Render Loop
     this.lastTime = performance.now();
     requestAnimationFrame((t) => this.renderLoop(t));
+  }
+
+  private applyMotionPreference(): void {
+    const state = this.persistence.getState();
+    const systemReduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const shouldReduce = state.settings.reduceMotion || systemReduce;
+
+    this.ghost.reduceMotion = shouldReduce;
+    this.director.candyRain.reduceMotion = shouldReduce;
+    if (shouldReduce) {
+      document.body.classList.add('reduce-motion');
+    } else {
+      document.body.classList.remove('reduce-motion');
+    }
+  }
+
+  // P0-02: Proper startup recovery from checkpoint without permanently restarting prologue
+  private handleStartupCheckpoint(): void {
+    const state = this.persistence.getState();
+    const checkpoint = state.lastSafeCheckpoint || 'S01';
+
+    // If first time or checkpoint is S01, start at S00
+    if (checkpoint === 'S01' && !state.firstRunCompleted) {
+      this.director.goToScene('S00');
+      return;
+    }
+
+    // Stay at S00 to offer continuing or restarting
+    this.director.currentScene = 'S00';
+    this.updateHeader('S00');
+    this.renderControlsForScene('S00');
   }
 
   private resizeCanvas(): void {
@@ -136,6 +175,9 @@ class GameApp {
     // Moon position in S01 / S02
     this.moonX = this.width * 0.72;
     this.moonY = this.height * 0.22;
+
+    // S04 Trial Candy position
+    this.s04CandyPos = { x: this.width / 2, y: this.height * 0.75 };
   }
 
   private bindDOMEvents(): void {
@@ -152,6 +194,15 @@ class GameApp {
     // Handbook Modal
     this.handbookBtn.addEventListener('click', () => {
       this.openHandbookModal();
+    });
+
+    // Pause on visibility change
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) {
+        this.director.candyRain.isPaused = true;
+      } else {
+        this.director.candyRain.isPaused = false;
+      }
     });
   }
 
@@ -190,6 +241,20 @@ class GameApp {
       }
     };
 
+    // Drag start on S04 trial candy
+    this.input.onDragStart = (x, y) => {
+      if (this.director.currentScene === 'S04') {
+        const dx = x - this.s04CandyPos.x;
+        const dy = y - this.s04CandyPos.y;
+        if (Math.sqrt(dx * dx + dy * dy) < 45) {
+          this.draggingCandy = 'pumpkin';
+          this.candyDragX = x;
+          this.candyDragY = y;
+          this.candyTeaseTracker = { approached: false, count: 0 };
+        }
+      }
+    };
+
     // Tap on stage
     this.input.onTap = (x, y) => {
       this.handleStageTap(x, y);
@@ -198,6 +263,12 @@ class GameApp {
     // Long press
     this.input.onLongPress = (x, y) => {
       this.handleStageLongPress(x, y);
+    };
+
+    // Drag cancel rollback
+    this.input.onDragCancel = () => {
+      this.draggingCandy = null;
+      this.ghost.setAction('idle');
     };
 
     // Drag end: drop candy into ghost mouth
@@ -214,11 +285,13 @@ class GameApp {
             this.audio.playSfx('swallow');
             this.director.goToScene('S05');
           } else {
-            this.director.feedCandy(this.draggingCandy);
+            // Check if hungry without teasing
+            const isHungryFeed = this.ghost.action === 'anticipate';
+            this.director.feedCandy(this.draggingCandy, isHungryFeed);
             this.renderControlsForScene(this.director.currentScene);
           }
         } else {
-          // Dropped on empty floor: bouncy elastic return
+          // Dropped on empty floor
           this.audio.playSfx('boop');
           if (this.director.currentScene === 'S04') {
             this.ghost.setAction('angry', 1.0);
@@ -252,7 +325,7 @@ class GameApp {
           // Flip cardboard sign
           this.ghost.isNoteFlipped = !this.ghost.isNoteFlipped;
         } else if (s === 'S27' && this.ghost.action === 'sleep') {
-          // Poked sleeping ghost (ordinary)
+          // Poked sleeping ghost (ordinary wake)
           this.ghost.setAction('idle');
           this.director.showDialogueQueue(['……睡醒了。']);
         }
@@ -265,7 +338,6 @@ class GameApp {
       const cornerX = this.width - 40;
       const cornerY = this.height - 80;
       if (Math.abs(x - cornerX) < 60 && Math.abs(y - cornerY) < 60) {
-        this.bulgeClicked = true;
         this.audio.playSfx('pageFlip');
         this.director.goToScene('S03');
         return;
@@ -337,18 +409,72 @@ class GameApp {
   private renderControlsForScene(scene: SceneId): void {
     this.bottomActionRow.innerHTML = '';
     this.minigameOverlay.innerHTML = '';
+    const state = this.persistence.getState();
 
     switch (scene) {
       case 'S00': {
-        const btn = document.createElement('button');
-        btn.className = 'paper-btn';
-        btn.innerText = '翻开这本书';
-        btn.onclick = async () => {
-          await this.audio.unlock();
-          this.audio.playSfx('pageFlip');
-          this.director.goToScene('S01');
-        };
-        this.bottomActionRow.appendChild(btn);
+        const checkpoint = state.lastSafeCheckpoint || 'S01';
+        const hasProgress = checkpoint !== 'S01';
+
+        if (state.firstRunCompleted) {
+          const continueBtn = document.createElement('button');
+          continueBtn.className = 'paper-btn';
+          continueBtn.innerText = '继续自由喂养';
+          continueBtn.onclick = async () => {
+            await this.audio.unlock();
+            this.director.goToScene('S27');
+          };
+
+          const handbookBtn = document.createElement('button');
+          handbookBtn.className = 'paper-btn secondary';
+          handbookBtn.innerText = '饲养手册';
+          handbookBtn.onclick = async () => {
+            await this.audio.unlock();
+            this.openHandbookModal();
+          };
+
+          const restartBtn = document.createElement('button');
+          restartBtn.className = 'paper-btn secondary';
+          restartBtn.innerText = '重新翻阅绘本';
+          restartBtn.onclick = async () => {
+            await this.audio.unlock();
+            this.director.startNewRun();
+          };
+
+          this.bottomActionRow.appendChild(continueBtn);
+          this.bottomActionRow.appendChild(handbookBtn);
+          this.bottomActionRow.appendChild(restartBtn);
+        } else if (hasProgress) {
+          const continueBtn = document.createElement('button');
+          continueBtn.className = 'paper-btn';
+          continueBtn.innerText = `继续上次进度 (${checkpoint})`;
+          continueBtn.onclick = async () => {
+            await this.audio.unlock();
+            this.audio.playSfx('pageFlip');
+            this.director.goToScene(checkpoint);
+          };
+
+          const readFromStartBtn = document.createElement('button');
+          readFromStartBtn.className = 'paper-btn secondary';
+          readFromStartBtn.innerText = '从头再读';
+          readFromStartBtn.onclick = async () => {
+            await this.audio.unlock();
+            this.director.startNewRun();
+          };
+
+          this.bottomActionRow.appendChild(continueBtn);
+          this.bottomActionRow.appendChild(readFromStartBtn);
+        } else {
+          const btn = document.createElement('button');
+          btn.className = 'paper-btn';
+          btn.innerText = '翻开这本书';
+          btn.onclick = async () => {
+            await this.audio.unlock();
+            this.audio.playSfx('pageFlip');
+            this.director.goToScene('S01');
+          };
+          this.bottomActionRow.appendChild(btn);
+        }
         break;
       }
 
@@ -389,16 +515,22 @@ class GameApp {
       }
 
       case 'S04': {
-        // Feed trial candy button / drag target
-        const btn = document.createElement('button');
-        btn.className = 'paper-btn';
-        btn.innerText = '递给它试吃糖果';
-        btn.onclick = () => {
+        // P1-02: Draggable candy is primary on canvas; provide fallback button
+        const hint = document.createElement('div');
+        hint.style.fontSize = '13px';
+        hint.style.color = THEME_COLORS.inkBrown;
+        hint.innerText = '将下方的试吃糖果拖进半糖嘴里 🍬';
+        this.bottomActionRow.appendChild(hint);
+
+        const assistBtn = document.createElement('button');
+        assistBtn.className = 'paper-btn secondary';
+        assistBtn.innerText = '递给它试吃糖果';
+        assistBtn.onclick = () => {
           this.ghost.setAction('eat', 0.6);
           this.audio.playSfx('swallow');
           this.director.goToScene('S05');
         };
-        this.bottomActionRow.appendChild(btn);
+        this.bottomActionRow.appendChild(assistBtn);
         break;
       }
 
@@ -459,7 +591,6 @@ class GameApp {
       case 'S10':
       case 'S11':
       case 'S12': {
-        // Candy rain gameplay instructions
         const hint = document.createElement('div');
         hint.style.fontSize = '13px';
         hint.style.color = THEME_COLORS.inkBrown;
@@ -493,7 +624,6 @@ class GameApp {
       }
 
       case 'S15_A': {
-        // Pumpkin Hat Adjustment + Face Draw UI
         if (this.director.pumpkinGame.step === 'adjustHat') {
           const row = document.createElement('div');
           row.style.display = 'flex';
@@ -539,7 +669,6 @@ class GameApp {
       }
 
       case 'S16_B': {
-        // Milk tea Shake + Punctuation arrange
         if (this.director.milkTeaGame.step === 'shakeCup') {
           const btn = document.createElement('button');
           btn.className = 'paper-btn secondary';
@@ -573,7 +702,6 @@ class GameApp {
       }
 
       case 'S17_C': {
-        // Poet word chip selector
         if (this.director.poetGame.step === 'selectWords') {
           const container = document.createElement('div');
           container.className = 'poet-rows-container';
@@ -605,7 +733,6 @@ class GameApp {
       }
 
       case 'S18_D': {
-        // Movie Takes 1, 2, 3
         const game = this.director.movieGame;
         if (game.currentTake === 1) {
           const btn = document.createElement('button');
@@ -639,7 +766,6 @@ class GameApp {
       }
 
       case 'S19_E': {
-        // Sleepwalker Constellation
         const row = document.createElement('div');
         row.style.display = 'flex';
         row.style.gap = '8px';
@@ -662,35 +788,89 @@ class GameApp {
         break;
       }
 
+      // P0-04: S20 Real second transformation mini-interaction
       case 'S20': {
-        // Second form selection bookmarks
-        const state = this.persistence.getState();
-        const main = state.mainFormThisRun || 'poet';
-        const allCandidates: GhostFormId[] = ['pumpkin', 'milktea', 'poet', 'movie', 'sleepwalk'];
-        const remaining = allCandidates.filter((f) => f !== main);
-
-        const b1 = document.createElement('button');
-        b1.className = 'paper-btn secondary';
-        b1.innerText = `体验：${FORMS_META[remaining[0]].name}`;
-        b1.onclick = () => {
-          this.audio.playSfx('boop');
-          this.director.showDialogueQueue(['糖分有续集。', `${FORMS_META[remaining[0]].name}体验完成。`], () => {
-            this.director.goToScene('S21');
+        if (!this.director.s20ChosenForm) {
+          // Present top 2 runner-up candidates
+          const candidates = this.director.s20Candidates;
+          candidates.forEach((formId) => {
+            const btn = document.createElement('button');
+            btn.className = 'paper-btn secondary';
+            btn.innerText = `体验：${FORMS_META[formId].name}`;
+            btn.onclick = () => {
+              this.director.s20ChosenForm = formId;
+              this.ghost.form = formId;
+              this.ghost.setAction('transform', 1.5);
+              this.audio.playSfx('boop');
+              this.renderControlsForScene('S20');
+            };
+            this.bottomActionRow.appendChild(btn);
           });
-        };
+        } else if (!this.director.s20MiniStepDone) {
+          // Real interactive micro-game for chosen form
+          const f = this.director.s20ChosenForm;
+          const actionBtn = document.createElement('button');
+          actionBtn.className = 'paper-btn accent';
 
-        const b2 = document.createElement('button');
-        b2.className = 'paper-btn secondary';
-        b2.innerText = `体验：${FORMS_META[remaining[1]].name}`;
-        b2.onclick = () => {
-          this.audio.playSfx('boop');
-          this.director.showDialogueQueue(['糖分有续集。', `${FORMS_META[remaining[1]].name}体验完成。`], () => {
+          if (f === 'pumpkin') {
+            actionBtn.innerText = '一划扶正南瓜帽';
+            actionBtn.onclick = () => {
+              this.director.s20MiniStepDone = true;
+              this.audio.playSfx('boop');
+              this.director.showDialogueQueue(['成熟有点硌。']);
+              this.recordS20Completion(f);
+              this.renderControlsForScene('S20');
+            };
+          } else if (f === 'milktea') {
+            actionBtn.innerText = '一划摇匀奶茶杯';
+            actionBtn.onclick = () => {
+              this.director.s20MiniStepDone = true;
+              this.audio.playSfx('boop');
+              this.director.showDialogueQueue(['人生起伏可饮。']);
+              this.recordS20Completion(f);
+              this.renderControlsForScene('S20');
+            };
+          } else if (f === 'poet') {
+            actionBtn.innerText = '点词成句：废话也要有韵脚';
+            actionBtn.onclick = () => {
+              this.director.s20MiniStepDone = true;
+              this.audio.playSfx('chime');
+              this.director.showDialogueQueue(['我宣布，废话也要有韵脚。']);
+              this.recordS20Completion(f);
+              this.renderControlsForScene('S20');
+            };
+          } else if (f === 'movie') {
+            actionBtn.innerText = '开拍：零预算文艺镜头';
+            actionBtn.onclick = () => {
+              this.director.s20MiniStepDone = true;
+              this.audio.playSfx('clapper');
+              this.director.showDialogueQueue(['预算是零，野心很多。']);
+              this.recordS20Completion(f);
+              this.renderControlsForScene('S20');
+            };
+          } else {
+            actionBtn.innerText = '将一颗星轻放入睡帽';
+            actionBtn.onclick = () => {
+              this.director.s20MiniStepDone = true;
+              this.audio.playSfx('twinkle');
+              this.director.showDialogueQueue(['允许再睡三秒。']);
+              this.recordS20Completion(f);
+              this.renderControlsForScene('S20');
+            };
+          }
+
+          this.bottomActionRow.appendChild(actionBtn);
+        } else {
+          // Completed mini-game -> proceed to S21
+          const nextBtn = document.createElement('button');
+          nextBtn.className = 'paper-btn';
+          nextBtn.innerText = '继续前往第四章 →';
+          nextBtn.onclick = () => {
+            this.audio.playSfx('pageFlip');
             this.director.goToScene('S21');
-          });
-        };
-
-        this.bottomActionRow.appendChild(b1);
-        this.bottomActionRow.appendChild(b2);
+          };
+          this.bottomActionRow.appendChild(nextBtn);
+        }
         break;
       }
 
@@ -706,8 +886,11 @@ class GameApp {
         break;
       }
 
+      // P1-01: True wrapper sorting and reverse order EGG11 reachability
       case 'S22': {
-        // S22 wrapper sorting slots
+        // Collectible wrappers available for sorting (ensure at least 3)
+        const myWrappers = Array.from(new Set([...state.collectibles, '01', '02', '09'])).slice(0, 5);
+
         const container = document.createElement('div');
         container.className = 'wrapper-slots-container';
 
@@ -715,29 +898,57 @@ class GameApp {
           const slot = document.createElement('div');
           const placedId = this.director.sortedWrappers[i];
           slot.className = `wrapper-slot ${placedId ? 'filled' : ''}`;
+
           if (placedId) {
             const w = CANDY_WRAPPERS.find((x) => x.id === placedId);
-            slot.innerHTML = `<strong>#${placedId}</strong><br>${w?.title || '糖纸'}`;
-          } else {
-            slot.innerHTML = `槽位 ${i + 1}<br>(轻触放入)`;
+            slot.innerHTML = `<strong>#${placedId}</strong><br>${w?.title || '糖纸'}<br><span style="font-size: 10px; opacity: 0.6;">(轻触取出)</span>`;
             slot.onclick = () => {
-              const state = this.persistence.getState();
-              const available = ['01', '02', '03', '04', '05', '06', '07', '08', '09'].filter(
-                (id) => !this.director.sortedWrappers.includes(id)
-              );
-              if (available.length > 0) {
-                this.director.putWrapperInSlot(available[0]);
-                this.renderControlsForScene('S22');
-              }
+              this.director.removeWrapperFromSlot(i);
+              this.renderControlsForScene('S22');
             };
+          } else {
+            slot.innerHTML = `槽位 ${i + 1}<br>(请选下方糖纸)`;
           }
           container.appendChild(slot);
         }
         this.minigameOverlay.appendChild(container);
 
-        if (this.director.sortedWrappers.length >= 3) {
+        // Render available wrappers on the table
+        const pickerRow = document.createElement('div');
+        pickerRow.style.display = 'flex';
+        pickerRow.style.flexWrap = 'wrap';
+        pickerRow.style.gap = '8px';
+        pickerRow.style.justifyContent = 'center';
+        pickerRow.style.width = '100%';
+
+        myWrappers.forEach((id) => {
+          const isPlaced = this.director.sortedWrappers.includes(id);
+          const w = CANDY_WRAPPERS.find((x) => x.id === id);
+          const chip = document.createElement('button');
+          chip.className = `paper-sign-btn ${isPlaced ? 'active' : ''}`;
+          chip.innerText = `#${id} ${w?.title || '糖纸'}`;
+          chip.disabled = isPlaced;
+          chip.onclick = () => {
+            // Find first empty slot
+            let emptyIdx = this.director.sortedWrappers.findIndex((x) => !x);
+            if (emptyIdx === -1 && this.director.sortedWrappers.length < 3) {
+              emptyIdx = this.director.sortedWrappers.length;
+            }
+            if (emptyIdx !== -1 && emptyIdx < 3) {
+              this.director.putWrapperInSlot(id, emptyIdx);
+              this.renderControlsForScene('S22');
+            }
+          };
+          pickerRow.appendChild(chip);
+        });
+
+        this.bottomActionRow.appendChild(pickerRow);
+
+        const filledCount = this.director.sortedWrappers.filter((x) => !!x).length;
+        if (filledCount >= 3) {
           const nextBtn = document.createElement('button');
           nextBtn.className = 'paper-btn';
+          nextBtn.style.marginTop = '8px';
           nextBtn.innerText = '合上这一页';
           nextBtn.onclick = () => {
             this.audio.playSfx('pageFlip');
@@ -833,8 +1044,7 @@ class GameApp {
         b3.className = 'paper-btn';
         b3.innerText = '再读一遍';
         b3.onclick = () => {
-          this.persistence.resetForNewRun();
-          this.director.goToScene('S01');
+          this.director.startNewRun();
         };
 
         this.bottomActionRow.appendChild(b1);
@@ -865,7 +1075,7 @@ class GameApp {
           formRow.appendChild(btn);
         });
 
-        // Check if Heart Form S30 is accessible
+        // Check if Heart Form S30 is accessible (P1-04)
         if (
           (this.persistence.countGentleActs() >= 2 && this.persistence.getState().feedCounts.heart > 0) ||
           this.persistence.getState().unlockedForms.includes('heart')
@@ -902,6 +1112,17 @@ class GameApp {
     }
   }
 
+  // Record S20 completion and unlock
+  private recordS20Completion(formId: GhostFormId): void {
+    const state = this.persistence.getState();
+    state.secondFormThisRun = formId;
+    if (!state.playedFormsThisRun.includes(formId)) {
+      state.playedFormsThisRun.push(formId);
+    }
+    this.persistence.unlockForm(formId);
+    this.persistence.save();
+  }
+
   // --- Candy Tray Renderer (S06 / S27) ---
   private renderCandyTray(): void {
     const tray = document.createElement('div');
@@ -927,11 +1148,13 @@ class GameApp {
         const rect = this.stageContainer.getBoundingClientRect();
         this.candyDragX = e.clientX - rect.left;
         this.candyDragY = e.clientY - rect.top;
+        this.candyTeaseTracker = { approached: false, count: 0 };
       });
 
       // Tap alternative
       item.addEventListener('click', () => {
-        this.director.feedCandy(cType);
+        const isHungryFeed = this.ghost.action === 'anticipate';
+        this.director.feedCandy(cType, isHungryFeed);
         this.renderControlsForScene(this.director.currentScene);
       });
 
@@ -997,6 +1220,7 @@ class GameApp {
 
     motionEl.addEventListener('change', () => {
       state.settings.reduceMotion = motionEl.checked;
+      this.applyMotionPreference();
       this.persistence.save();
     });
 
@@ -1026,8 +1250,8 @@ class GameApp {
       <div class="card-preview-modal">
         <img src="${dataUrl}" alt="万圣节快乐持有证" />
         <div class="settings-footer" style="flex-direction: column; gap: 8px;">
-          <div style="font-size: 12px; color: ${THEME_COLORS.inkLight}; text-align: center;">
-            长按上方卡片即可在手机中【存储图像】
+          <div style="font-size: 13px; color: ${THEME_COLORS.inkBrown}; text-align: center; font-weight: bold;">
+            长按上方图片即可选择【存储图像】保存至系统相册
           </div>
           <button class="paper-btn close-card-btn">完成</button>
         </div>
@@ -1072,7 +1296,12 @@ class GameApp {
       this.ghost.render(ctx, this.ghost.x, this.ghost.y);
     }
 
-    // 4. Render Dragging Candy under finger
+    // 4. In S04: Render draggable Trial Candy on table if not dragging
+    if (s === 'S04' && !this.draggingCandy) {
+      this.renderTrialCandy(ctx, this.s04CandyPos.x, this.s04CandyPos.y);
+    }
+
+    // 5. Render Dragging Candy under finger
     if (this.draggingCandy) {
       this.renderDraggingCandy(ctx, this.draggingCandy, this.candyDragX, this.candyDragY);
     }
@@ -1104,7 +1333,7 @@ class GameApp {
       ctx.fillRect(0, 0, this.width, this.height);
 
       // Gold breathing moon with bite mark
-      const breath = Math.sin(performance.now() * 0.002) * 2;
+      const breath = this.ghost.reduceMotion ? 0 : Math.sin(performance.now() * 0.002) * 2;
       ctx.beginPath();
       ctx.arc(this.width / 2, this.height * 0.38, 48 + breath, 0, Math.PI * 2);
       ctx.fillStyle = '#ED9A55';
@@ -1144,6 +1373,48 @@ class GameApp {
       ctx.lineTo(this.width, this.height - 90);
       ctx.stroke();
     }
+
+    ctx.restore();
+  }
+
+  private renderTrialCandy(ctx: CanvasRenderingContext2D, x: number, y: number): void {
+    ctx.save();
+    ctx.translate(x, y);
+
+    // Subtle breathing pulse
+    const s = 1.0 + (this.ghost.reduceMotion ? 0 : Math.sin(performance.now() * 0.003) * 0.05);
+    ctx.scale(s, s);
+
+    ctx.fillStyle = 'rgba(237, 154, 85, 0.2)';
+    ctx.beginPath();
+    ctx.arc(0, 0, 26, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = '#ED9A55';
+    ctx.strokeStyle = '#47392F';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(0, 0, 18, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+
+    // White wrapper twists
+    ctx.fillStyle = '#FFFFFF';
+    ctx.beginPath();
+    ctx.moveTo(-18, 0);
+    ctx.lineTo(-28, -8);
+    ctx.lineTo(-28, 8);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.moveTo(18, 0);
+    ctx.lineTo(28, -8);
+    ctx.lineTo(28, 8);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
 
     ctx.restore();
   }

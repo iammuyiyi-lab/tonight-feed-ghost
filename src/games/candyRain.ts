@@ -22,6 +22,7 @@ export class CandyRainGame {
   public consecutiveCatches: number = 0;
   public isPaused: boolean = false;
   public isFinished: boolean = false;
+  public reduceMotion: boolean = false;
 
   // Active falling items
   public items: FallingItem[] = [];
@@ -55,15 +56,36 @@ export class CandyRainGame {
 
   constructor(audio: AudioDirector) {
     this.audio = audio;
-    this.reset();
+    this.resetEntireRainGame();
   }
 
-  public reset(wave: number = 1): void {
+  // Full reset for a fresh new run
+  public resetEntireRainGame(): void {
+    this.wave = 1;
+    this.waveTimeRemaining = 22;
+    this.caughtCandyCount = 0;
+    this.consecutiveCatches = 0;
+    this.items = [];
+    this.spawnTimer = 0.5;
+    this.isPaused = false;
+    this.isFinished = false;
+    this.currentCallout = null;
+    this.calloutTimer = 0;
+    this.routeScoresEarned = {
+      pumpkin: 0,
+      milktea: 0,
+      poet: 0,
+      movie: 0,
+      sleepwalk: 0,
+    };
+  }
+
+  // Wave reset that preserves current run scores
+  public resetWave(wave: number): void {
     this.wave = wave;
     this.waveTimeRemaining = 22;
     this.items = [];
     this.spawnTimer = 0.5;
-    this.isFinished = false;
     this.currentCallout = null;
     this.calloutTimer = 0;
   }
@@ -100,7 +122,9 @@ export class CandyRainGame {
     for (let i = this.items.length - 1; i >= 0; i--) {
       const item = this.items[i];
       item.y += item.speed * dt;
-      item.rotation += item.rotSpeed * dt;
+      if (!this.reduceMotion) {
+        item.rotation += item.rotSpeed * dt;
+      }
 
       // Check collision with ghost
       if (
@@ -150,7 +174,7 @@ export class CandyRainGame {
   private spawnItem(): void {
     const x = 30 + Math.random() * (this.stageWidth - 60);
     const speed = (110 + this.wave * 20 + Math.random() * 30);
-    const rotSpeed = (Math.random() - 0.5) * 2.5;
+    const rotSpeed = this.reduceMotion ? 0 : (Math.random() - 0.5) * 2.5;
 
     let type: FallingItem['type'] = 'candy';
     let candyType: CandyType = 'pumpkin';
@@ -184,7 +208,7 @@ export class CandyRainGame {
       const roll = Math.random();
       if (roll < 0.35) {
         type = 'moonShard';
-      } else if (roll < 0.50 && this.waveTimeRemaining < 15 && this.waveTimeRemaining > 5) {
+      } else if (roll < 0.50 && this.waveTimeRemaining < 16 && this.waveTimeRemaining > 4) {
         type = 'heart';
         candyType = 'heart';
       } else {
@@ -266,7 +290,9 @@ export class CandyRainGame {
     for (const item of this.items) {
       ctx.save();
       ctx.translate(item.x, item.y);
-      ctx.rotate(item.rotation);
+      if (!this.reduceMotion) {
+        ctx.rotate(item.rotation);
+      }
       this.renderItemIcon(ctx, item);
       ctx.restore();
     }
@@ -316,7 +342,6 @@ export class CandyRainGame {
         ctx.fillStyle = '#FFFDF7';
         ctx.fillRect(-s * 0.4, -s * 0.5, s * 0.8, s * 1.0);
         ctx.strokeRect(-s * 0.4, -s * 0.5, s * 0.8, s * 1.0);
-        // tiny lines
         ctx.fillStyle = THEME_COLORS.inkBrown;
         ctx.fillRect(-s * 0.25, -s * 0.25, s * 0.5, 2);
         ctx.fillRect(-s * 0.25, 0, s * 0.5, 2);
@@ -403,7 +428,6 @@ export class CandyRainGame {
     const w = textWidth + padX * 2;
     const h = 28 + padY;
 
-    // Vintage paper speech bubble
     ctx.fillStyle = '#FFFDF7';
     ctx.beginPath();
     ctx.roundRect(boxX - w / 2, boxY - h / 2, w, h, 8);
@@ -412,7 +436,6 @@ export class CandyRainGame {
     ctx.lineWidth = 2;
     ctx.stroke();
 
-    // Triangle tail pointing down to ghost
     ctx.beginPath();
     ctx.moveTo(boxX - 6, boxY + h / 2);
     ctx.lineTo(boxX, boxY + h / 2 + 8);
@@ -421,7 +444,6 @@ export class CandyRainGame {
     ctx.fill();
     ctx.stroke();
 
-    // Text
     ctx.fillStyle = THEME_COLORS.inkBrown;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';

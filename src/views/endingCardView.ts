@@ -37,11 +37,11 @@ export class EndingCardRenderer {
 
     // 2. Moon Pattern at top
     ctx.beginPath();
-    ctx.arc(400, 120, 36, 0, Math.PI * 2);
+    ctx.arc(400, 115, 34, 0, Math.PI * 2);
     ctx.fillStyle = '#ED9A55';
     ctx.fill();
     ctx.beginPath();
-    ctx.arc(412, 114, 30, 0, Math.PI * 2);
+    ctx.arc(412, 109, 28, 0, Math.PI * 2);
     ctx.fillStyle = '#F4E7CE';
     ctx.fill();
 
@@ -49,46 +49,45 @@ export class EndingCardRenderer {
     ctx.fillStyle = '#47392F';
     ctx.textAlign = 'center';
     ctx.font = 'bold 36px "PingFang SC", "Microsoft YaHei", "Noto Serif SC", serif';
-    ctx.fillText('万圣节快乐持有证', 400, 210);
+    ctx.fillText('万圣节快乐持有证', 400, 205);
 
     ctx.font = '20px "PingFang SC", "Microsoft YaHei", sans-serif';
     ctx.fillStyle = '#7A6B5D';
-    ctx.fillText('兹证明：你已成功喂饱一只不怎么专业的鬼。', 400, 260);
+    ctx.fillText('兹证明：你已成功喂饱一只不怎么专业的鬼。', 400, 250);
 
     // Horizontal separator
     ctx.strokeStyle = 'rgba(71, 57, 47, 0.25)';
     ctx.lineWidth = 1;
     ctx.beginPath();
-    ctx.moveTo(120, 290);
-    ctx.lineTo(680, 290);
+    ctx.moveTo(120, 280);
+    ctx.lineTo(680, 280);
     ctx.stroke();
 
-    // 4. Ghost Silhouette / Illustration
+    // 4. Ghost Vector Drawing (No system emoji, pure retro vector drawing)
     const mainForm = state.mainFormThisRun || 'default';
     const formMeta = FORMS_META[mainForm];
 
     // Little circular vignette for Ghost
     ctx.beginPath();
-    ctx.arc(400, 420, 85, 0, Math.PI * 2);
+    ctx.arc(400, 410, 85, 0, Math.PI * 2);
     ctx.fillStyle = '#E8DAC0';
     ctx.fill();
     ctx.strokeStyle = '#47392F';
     ctx.lineWidth = 2;
     ctx.stroke();
 
-    // Simple Ghost Icon inside vignette
-    ctx.font = '72px sans-serif';
-    ctx.fillText(formMeta.icon, 400, 445);
+    // Draw vector ghost inside vignette
+    this.drawCardGhost(ctx, 400, 430, mainForm);
 
     // 5. Dynamic Journey Records
     ctx.textAlign = 'center';
     ctx.font = 'bold 26px "PingFang SC", "Microsoft YaHei", sans-serif';
     ctx.fillStyle = '#B66862';
-    ctx.fillText(`今夜称号：【${endingTitle}】`, 400, 560);
+    ctx.fillText(`今夜称号：【${endingTitle}】`, 400, 555);
 
     ctx.font = 'italic 18px "PingFang SC", "Microsoft YaHei", sans-serif';
     ctx.fillStyle = '#7A6B5D';
-    ctx.fillText(`“${subNote}”`, 400, 595);
+    ctx.fillText(`“${subNote}”`, 400, 590);
 
     // Favorite Candy calculation
     let favoriteCandy = '南瓜糖';
@@ -102,14 +101,14 @@ export class EndingCardRenderer {
 
     ctx.font = '20px "PingFang SC", "Microsoft YaHei", sans-serif';
     ctx.fillStyle = '#47392F';
-    ctx.fillText(`它记得你给过它的：${favoriteCandy}`, 400, 650);
-    ctx.fillText(`它最荒唐的一次变身：${formMeta.name}`, 400, 690);
+    ctx.fillText(`它记得你给过它的：${favoriteCandy}`, 400, 645);
+    ctx.fillText(`它最荒唐的一次变身：${formMeta.name}`, 400, 685);
 
     // 6. Ending Blessing
     ctx.font = 'italic 21px "PingFang SC", "Microsoft YaHei", "Noto Serif SC", serif';
     ctx.fillStyle = '#3F3229';
-    ctx.fillText('“愿你拥有许多不必解释的快乐，', 400, 770);
-    ctx.fillText('和一点恰到好处的偏爱。”', 400, 805);
+    ctx.fillText('“愿你拥有许多不必解释的快乐，', 400, 765);
+    ctx.fillText('和一点恰到好处的偏爱。”', 400, 800);
 
     // 7. Footer Seal & Validity
     ctx.font = '15px "PingFang SC", "Microsoft YaHei", sans-serif';
@@ -134,12 +133,103 @@ export class EndingCardRenderer {
     return canvas.toDataURL('image/png');
   }
 
+  // Pure vector drawing for Half-Candy inside card vignette
+  private static drawCardGhost(ctx: CanvasRenderingContext2D, cx: number, cy: number, form: string): void {
+    ctx.save();
+    ctx.translate(cx, cy);
+    const scale = 0.55;
+    ctx.scale(scale, scale);
+
+    // Drop shadow
+    ctx.beginPath();
+    ctx.ellipse(0, 100, 55, 14, 0, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(71, 57, 47, 0.15)';
+    ctx.fill();
+
+    // Body
+    ctx.beginPath();
+    ctx.moveTo(-50, 20);
+    ctx.bezierCurveTo(-55, -50, -42, -90, 0, -92);
+    ctx.bezierCurveTo(42, -90, 55, -50, 50, 20);
+    ctx.bezierCurveTo(55, 60, 48, 85, 40, 90);
+    ctx.quadraticCurveTo(20, 80, 0, 92);
+    ctx.quadraticCurveTo(-20, 80, -40, 90);
+    ctx.bezierCurveTo(-48, 85, -55, 60, -50, 20);
+    ctx.closePath();
+    ctx.fillStyle = '#FFFDF7';
+    ctx.fill();
+    ctx.strokeStyle = '#47392F';
+    ctx.lineWidth = 3;
+    ctx.stroke();
+
+    // Beady eyes
+    [-18, 18].forEach((ex) => {
+      ctx.beginPath();
+      ctx.arc(ex, -30, 5, 0, Math.PI * 2);
+      ctx.fillStyle = '#47392F';
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(ex - 2, -32, 2, 0, Math.PI * 2);
+      ctx.fillStyle = '#FFFFFF';
+      ctx.fill();
+    });
+
+    // Mouth
+    ctx.beginPath();
+    ctx.arc(0, -12, 6, 0.2, Math.PI - 0.2, false);
+    ctx.strokeStyle = '#47392F';
+    ctx.lineWidth = 2.5;
+    ctx.stroke();
+
+    // Form specific accessory
+    if (form === 'pumpkin') {
+      ctx.fillStyle = '#ED9A55';
+      ctx.beginPath();
+      ctx.ellipse(0, -90, 46, 26, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+    } else if (form === 'milktea') {
+      ctx.strokeStyle = '#ED9A55';
+      ctx.lineWidth = 8;
+      ctx.beginPath();
+      ctx.moveTo(15, -120);
+      ctx.lineTo(0, -40);
+      ctx.stroke();
+    } else if (form === 'poet') {
+      ctx.fillStyle = '#1F2942';
+      ctx.beginPath();
+      ctx.ellipse(-10, -90, 40, 16, -0.2, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+    } else if (form === 'movie') {
+      ctx.fillStyle = '#333333';
+      ctx.fillRect(-35, 15, 70, 14);
+    } else if (form === 'sleepwalk') {
+      ctx.fillStyle = '#A5A0C8';
+      ctx.beginPath();
+      ctx.moveTo(-30, 10);
+      ctx.quadraticCurveTo(-45, -40, -65, -20);
+      ctx.quadraticCurveTo(-15, -30, 30, 10);
+      ctx.fill();
+      ctx.stroke();
+    } else if (form === 'heart') {
+      ctx.fillStyle = '#B66862';
+      ctx.beginPath();
+      ctx.arc(-26, -20, 6, 0, Math.PI * 2);
+      ctx.arc(26, -20, 6, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    ctx.restore();
+  }
+
   public static async triggerSaveOrShare(dataUrl: string): Promise<{ success: boolean; fallbackView: boolean }> {
     try {
-      // Check Web Share API with file support
       if (navigator.share && navigator.canShare) {
-        const blob = await (await fetch(dataUrl)).blob();
+        const res = await fetch(dataUrl);
+        const blob = await res.blob();
         const file = new File([blob], '万圣节快乐持有证.png', { type: 'image/png' });
+
         if (navigator.canShare({ files: [file] })) {
           await navigator.share({
             files: [file],
@@ -149,19 +239,20 @@ export class EndingCardRenderer {
           return { success: true, fallbackView: false };
         }
       }
-    } catch (e) {
-      console.warn('Share API failed or cancelled:', e);
+    } catch {
+      // User cancelled share or share failed
     }
 
-    // Fallback: Trigger download or display inline image for iOS Safari long-press
+    // Fallback: Trigger download & return fallbackView: true for Safari long-press preview
     try {
       const a = document.createElement('a');
       a.href = dataUrl;
       a.download = '万圣节快乐持有证.png';
       a.click();
-      return { success: true, fallbackView: true };
     } catch {
-      return { success: false, fallbackView: true };
+      // Ignored
     }
+
+    return { success: true, fallbackView: true };
   }
 }

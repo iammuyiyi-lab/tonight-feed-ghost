@@ -25,6 +25,9 @@ export class SceneDirector {
   public persistence: PersistenceSystem;
   public audio: AudioDirector;
 
+  // Scene transition Epoch / Token to prevent stale async callbacks
+  public sceneEpoch: number = 0;
+
   // Minigame instances
   public candyRain: CandyRainGame;
   public pumpkinGame: PumpkinMiniGame;
@@ -51,6 +54,11 @@ export class SceneDirector {
   public lastEndingCardUrl: string | null = null;
   public endingTitle: string = '深夜喂鬼员';
   public endingSubNote: string = '今晚你做的最大善事，是喂饱了一只鬼。';
+
+  // S20 Second transformation state
+  public s20Candidates: GhostFormId[] = [];
+  public s20ChosenForm: GhostFormId | null = null;
+  public s20MiniStepDone: boolean = false;
 
   // S25 final candy states
   public finalCandyClicks: number = 0;
@@ -88,6 +96,15 @@ export class SceneDirector {
   }
 
   private bindMinigameEvents(): void {
+    // Candy Rain wave synchronization (P0-05)
+    this.candyRain.onWaveComplete = (wave) => {
+      if (wave === 1) {
+        this.goToScene('S11');
+      } else if (wave === 2) {
+        this.goToScene('S12');
+      }
+    };
+
     // Candy Rain completion
     this.candyRain.onGameComplete = (totalCaught) => {
       const state = this.persistence.getState();
@@ -110,7 +127,7 @@ export class SceneDirector {
       this.persistence.recordGentleAct(act);
     };
 
-    // Pumpkin
+    // Pumpkin S15_A
     this.pumpkinGame.onCompleted = () => {
       this.persistence.unlockWrapper('03');
       this.persistence.unlockForm('pumpkin');
@@ -120,7 +137,7 @@ export class SceneDirector {
       });
     };
 
-    // Milk tea
+    // Milk tea S16_B
     this.milkTeaGame.onCompleted = () => {
       this.persistence.unlockWrapper('04');
       this.persistence.unlockForm('milktea');
@@ -130,7 +147,7 @@ export class SceneDirector {
       });
     };
 
-    // Poet
+    // Poet S17_C
     this.poetGame.onCompleted = (poem) => {
       const state = this.persistence.getState();
       state.savedPoems.push(poem);
@@ -142,7 +159,7 @@ export class SceneDirector {
       });
     };
 
-    // Movie
+    // Movie S18_D
     this.movieGame.onCompleted = () => {
       this.persistence.unlockWrapper('06');
       this.persistence.unlockForm('movie');
@@ -155,7 +172,7 @@ export class SceneDirector {
       this.persistence.discoverEasterEgg(eggId);
     };
 
-    // Sleepwalker
+    // Sleepwalker S19_E
     this.sleepwalkerGame.onCompleted = () => {
       this.persistence.unlockWrapper('07');
       this.persistence.unlockForm('sleepwalk');
@@ -169,7 +186,48 @@ export class SceneDirector {
     };
   }
 
+  // P0-03: Complete state reset for fresh new run without leaking counts
+  public startNewRun(): void {
+    this.chapter1FeedCount = 0;
+    this.chapter1FlavorsTried.clear();
+    this.consecutiveSameFeed = 0;
+    this.lastFedCandy = null;
+    this.teaserCount = 0;
+    this.sortedWrappers = [];
+    this.stampsApplied = 0;
+    this.s20Candidates = [];
+    this.s20ChosenForm = null;
+    this.s20MiniStepDone = false;
+    this.finalCandyClicks = 0;
+    this.finalCandyOpened = false;
+    this.backCoverTimer = 0;
+    this.backCoverPeeked = false;
+    this.tableIdleTimer = 0;
+
+    this.candyRain.resetEntireRainGame();
+    this.pumpkinGame.reset();
+    this.milkTeaGame.reset();
+    this.poetGame.reset();
+    this.movieGame.reset();
+    this.sleepwalkerGame.reset();
+
+    this.persistence.resetForNewRun();
+    this.goToScene('S01');
+  }
+
   public goToScene(scene: SceneId): void {
+    this.sceneEpoch++;
+    const currentEpoch = this.sceneEpoch;
+
+    // Clear any active dialogue timers
+    if (this.typewriterTimer !== null) {
+      clearInterval(this.typewriterTimer);
+      this.typewriterTimer = null;
+    }
+    this.isTyping = false;
+    this.dialogueQueue = [];
+    this.onQueueComplete = null;
+
     this.currentScene = scene;
     const state = this.persistence.getState();
     state.scene = scene;
@@ -184,7 +242,7 @@ export class SceneDirector {
     }
 
     this.tableIdleTimer = 0;
-    this.initSceneState(scene);
+    this.initSceneState(scene, currentEpoch);
 
     if (this.onSceneChanged) {
       this.onSceneChanged(scene);
@@ -205,8 +263,9 @@ export class SceneDirector {
     }
   }
 
-  private initSceneState(scene: SceneId): void {
+  private initSceneState(scene: SceneId, currentEpoch: number): void {
     this.ghost.reset();
+    const state = this.persistence.getState();
 
     switch (scene) {
       case 'S00':
@@ -254,18 +313,18 @@ export class SceneDirector {
         break;
 
       case 'S10':
-        this.candyRain.reset(1);
+        this.candyRain.resetWave(1);
         this.setSubtitle('接糖波次 1/3：微甜好天气');
         break;
 
       case 'S11':
-        this.candyRain.reset(2);
-        this.setSubtitle('接糖波次 2/3：文学性降水（注意接住杂物）');
+        this.candyRain.resetWave(2);
+        this.setSubtitle('接糖波次 2/3：气象通知：空气中含有少量文学');
         break;
 
       case 'S12':
-        this.candyRain.reset(3);
-        this.setSubtitle('接糖波次 3/3：月亮雨与特别糖心');
+        this.candyRain.resetWave(3);
+        this.setSubtitle('接糖波次 3/3：最后一阵雨，来自月亮背面');
         break;
 
       case 'S13':
@@ -274,11 +333,13 @@ export class SceneDirector {
 
       case 'S14': {
         this.determineMainForm();
-        const main = this.persistence.getState().mainFormThisRun || 'poet';
+        const main = state.mainFormThisRun || 'poet';
         this.ghost.form = main;
         this.ghost.setAction('transform', 2.0);
         this.showDialogueQueue(SCENE_SCRIPTS.S14.lines, () => {
-          this.enterMainFormMiniGame(main);
+          if (this.sceneEpoch === currentEpoch) {
+            this.enterMainFormMiniGame(main);
+          }
         });
         break;
       }
@@ -313,10 +374,14 @@ export class SceneDirector {
         this.setSubtitle('梦游幽灵：拖动星星连缀成梦');
         break;
 
-      case 'S20':
+      case 'S20': {
         this.ghost.form = 'default';
+        this.s20ChosenForm = null;
+        this.s20MiniStepDone = false;
+        this.s20Candidates = this.calculateS20Candidates();
         this.showDialogueQueue(SCENE_SCRIPTS.S20.lines);
         break;
+      }
 
       case 'S21':
         this.showDialogueQueue(SCENE_SCRIPTS.S21.lines);
@@ -333,7 +398,6 @@ export class SceneDirector {
         break;
 
       case 'S24': {
-        const state = this.persistence.getState();
         const titleInfo = evaluateEndingTitle(state);
         this.endingTitle = titleInfo.title;
         this.endingSubNote = titleInfo.subNote;
@@ -350,7 +414,6 @@ export class SceneDirector {
         break;
 
       case 'S26': {
-        const state = this.persistence.getState();
         state.firstRunCompleted = true;
         this.persistence.save();
         this.backCoverTimer = 0;
@@ -408,7 +471,7 @@ export class SceneDirector {
     }
   }
 
-  private setSubtitle(text: string): void {
+  public setSubtitle(text: string): void {
     if (this.typewriterTimer !== null) {
       clearInterval(this.typewriterTimer);
       this.typewriterTimer = null;
@@ -422,6 +485,7 @@ export class SceneDirector {
   }
 
   private typewrite(text: string): void {
+    const epoch = this.sceneEpoch;
     if (this.typewriterTimer !== null) {
       clearInterval(this.typewriterTimer);
       this.typewriterTimer = null;
@@ -432,8 +496,13 @@ export class SceneDirector {
     this.typewriterIndex = 0;
     this.isTyping = true;
 
-    // Speed: ~20 chars/sec = 50ms per char
-    this.typewriterTimer = window.setInterval(() => {
+    // Speed: ~22 chars/sec = 45ms per char
+    this.typewriterTimer = setInterval(() => {
+      if (this.sceneEpoch !== epoch) {
+        clearInterval(this.typewriterTimer!);
+        return;
+      }
+
       if (this.typewriterIndex < this.fullSubtitleText.length) {
         this.subtitleText += this.fullSubtitleText[this.typewriterIndex];
         this.typewriterIndex++;
@@ -473,10 +542,34 @@ export class SceneDirector {
     const main = candidates[0].form;
     const state = this.persistence.getState();
     state.mainFormThisRun = main;
-    state.playedFormsThisRun.push(main);
+    if (!state.playedFormsThisRun.includes(main)) {
+      state.playedFormsThisRun.push(main);
+    }
     this.persistence.unlockForm(main);
     this.persistence.save();
     return main;
+  }
+
+  // P0-04: Calculate top 2 non-main forms for S20
+  public calculateS20Candidates(): GhostFormId[] {
+    const state = this.persistence.getState();
+    const main = state.mainFormThisRun || 'poet';
+    const scores = state.routeScore;
+
+    const allForms: Array<{ form: GhostFormId; score: number; priority: number }> = [
+      { form: 'poet' as GhostFormId, score: scores.poet, priority: 5 },
+      { form: 'milktea' as GhostFormId, score: scores.milktea, priority: 4 },
+      { form: 'pumpkin' as GhostFormId, score: scores.pumpkin, priority: 3 },
+      { form: 'movie' as GhostFormId, score: scores.movie, priority: 2 },
+      { form: 'sleepwalk' as GhostFormId, score: scores.sleepwalk, priority: 1 },
+    ].filter((item): item is { form: GhostFormId; score: number; priority: number } => item.form !== main);
+
+    allForms.sort((a, b) => {
+      if (b.score !== a.score) return b.score - a.score;
+      return b.priority - a.priority;
+    });
+
+    return [allForms[0].form, allForms[1].form];
   }
 
   public enterMainFormMiniGame(form: GhostFormId): void {
@@ -503,12 +596,17 @@ export class SceneDirector {
   }
 
   // --- Chapter 1 Feeding Logic (S06 / S07) ---
-  public feedCandy(type: CandyType): { success: boolean; comment: string } {
+  public feedCandy(type: CandyType, isHungryFeedWithoutTeasing: boolean = false): { success: boolean; comment: string } {
     const state = this.persistence.getState();
     state.totalCandy++;
     state.feedCounts[type] = (state.feedCounts[type] || 0) + 1;
     this.chapter1FeedCount++;
     this.chapter1FlavorsTried.add(type);
+
+    // P1-04: Gentle act: feeding hungry ghost directly without teasing
+    if (isHungryFeedWithoutTeasing && this.teaserCount === 0) {
+      this.persistence.recordGentleAct('noTeasingCount');
+    }
 
     // Apply route points
     const meta = CANDIES[type];
@@ -557,33 +655,55 @@ export class SceneDirector {
     return { success: true, comment };
   }
 
+  // P1-04: Teasing only counts as mischief/egg, NEVER as gentle act
   public registerTeasingCandy(): void {
     this.teaserCount++;
     if (this.teaserCount >= 3) {
       this.typewrite(TEASING_DIALOGUES[1]);
       this.persistence.discoverEasterEgg('EGG05');
-      this.persistence.recordGentleAct('noTeasingCount');
     } else {
       this.typewrite(TEASING_DIALOGUES[0]);
     }
     this.ghost.setAction('angry', 1.2);
   }
 
-  // --- Chapter 4 S22 Wrapper Sorting ---
-  public putWrapperInSlot(wrapperId: string): void {
-    if (this.sortedWrappers.includes(wrapperId)) return;
-    this.sortedWrappers.push(wrapperId);
-    this.audio.playSfx('boop');
+  // --- Chapter 4 S22 Wrapper Sorting (P1-01) ---
+  public putWrapperInSlot(wrapperId: string, slotIndex: number): void {
+    // If slot index already has a wrapper, replace it
+    if (slotIndex >= 0 && slotIndex < 3) {
+      // Remove wrapperId if it was already in another slot
+      this.sortedWrappers = this.sortedWrappers.map((w, idx) => (idx === slotIndex ? wrapperId : (w === wrapperId ? '' : w)));
+      if (this.sortedWrappers.length <= slotIndex) {
+        this.sortedWrappers[slotIndex] = wrapperId;
+      }
+    } else {
+      if (!this.sortedWrappers.includes(wrapperId)) {
+        this.sortedWrappers.push(wrapperId);
+      }
+    }
 
-    const feedback = SCENE_SCRIPTS.S22.putFeedback[this.sortedWrappers.length - 1] || '这张收录了。';
+    this.audio.playSfx('boop');
+    const validCount = this.sortedWrappers.filter((w) => !!w).length;
+    const feedback = SCENE_SCRIPTS.S22.putFeedback[validCount - 1] || '这张收录了。';
     this.typewrite(feedback);
 
-    if (this.sortedWrappers.length === 3) {
-      // Check EGG11 reverse order
-      if (this.sortedWrappers[0] > this.sortedWrappers[1] && this.sortedWrappers[1] > this.sortedWrappers[2]) {
+    if (validCount === 3) {
+      // P1-01: True reverse order check (EGG11)
+      const w0 = this.sortedWrappers[0];
+      const w1 = this.sortedWrappers[1];
+      const w2 = this.sortedWrappers[2];
+      if (w0 > w1 && w1 > w2) {
         this.persistence.discoverEasterEgg('EGG11');
       }
       this.showDialogueQueue(SCENE_SCRIPTS.S22.completed);
+    }
+  }
+
+  public removeWrapperFromSlot(slotIndex: number): void {
+    if (this.sortedWrappers[slotIndex]) {
+      this.sortedWrappers[slotIndex] = '';
+      this.audio.playSfx('boop');
+      this.setSubtitle('已取出该张糖纸，可重新排版。');
     }
   }
 
