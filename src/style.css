@@ -422,10 +422,12 @@ html, body {
   inset: 0;
   display: flex;
   flex-direction: column;
-  justify-content: center;
+  justify-content: flex-end;
   align-items: center;
   z-index: 40;
   pointer-events: none;
+  padding-bottom: 74px;
+  box-sizing: border-box;
 }
 
 .minigame-overlay > * {
@@ -1332,29 +1334,39 @@ input:checked + .slider:before {
 }
 
 /* ================= Yang Message Modal ================= */
+.modal-overlay.yang-modal-overlay,
+.modal-overlay:has(.yang-message-modal) {
+  background: rgba(31, 41, 66, 0.52);
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  padding-bottom: calc(24px + var(--safe-bottom));
+}
+
 .yang-message-modal {
   background: #FFFDF9;
   border: 2px solid var(--color-ink-brown);
   border-radius: 12px;
-  padding: 24px 22px 20px;
+  padding: 18px 20px 16px;
   width: 90%;
   max-width: 360px;
   box-shadow: 0 12px 36px rgba(0, 0, 0, 0.45), 2px 3px 0 var(--color-ink-brown);
   position: relative;
-  animation: modalPopIn 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+  animation: modalPopInBottom 0.32s cubic-bezier(0.18, 0.89, 0.32, 1.25);
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 12px;
+  box-sizing: border-box;
 }
 
-@keyframes modalPopIn {
+@keyframes modalPopInBottom {
   0% {
     opacity: 0;
-    transform: scale(0.9);
+    transform: translateY(24px) scale(0.95);
   }
   100% {
     opacity: 1;
-    transform: scale(1);
+    transform: translateY(0) scale(1);
   }
 }
 
@@ -1372,7 +1384,7 @@ input:checked + .slider:before {
 }
 
 .yang-modal-header {
-  font-size: 18px;
+  font-size: 17px;
   font-weight: bold;
   color: #8C3B2B;
   letter-spacing: 1px;
@@ -1380,22 +1392,42 @@ input:checked + .slider:before {
 }
 
 .yang-modal-body {
-  font-size: 15px;
-  line-height: 1.7;
-  color: var(--color-ink-brown);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
   font-family: "PingFang SC", "Microsoft YaHei", serif;
+}
+
+.yang-modal-greeting {
+  font-size: 15px;
+  font-weight: bold;
+  color: #8C3B2B;
+  letter-spacing: 0.5px;
+}
+
+.yang-modal-main {
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--color-ink-brown);
   letter-spacing: 0.5px;
   word-break: break-word;
 }
 
 .yang-modal-signature {
   text-align: right;
-  font-size: 13px;
+  font-size: 12.5px;
   font-weight: 500;
   color: var(--color-ink-light);
   font-style: italic;
+  margin-top: -2px;
+}
+
+.yang-modal-footer {
+  margin-top: 2px;
 }
 
 .yang-close-btn {
   width: 100%;
+  padding: 8px 16px;
+  font-size: 14px;
 }

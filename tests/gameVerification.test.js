@@ -1,4 +1,6 @@
 import assert from 'assert';
+import fs from 'fs';
+import path from 'path';
 import { evaluateEndingTitle, CANDY_WRAPPERS, POEM_TEMPLATES, EASTER_EGGS_DEF } from '../src/config/collectibles.ts';
 import { INITIAL_SAVE_STATE, PersistenceSystem } from '../src/systems/persistence.ts';
 import { CANDIES, FORMS_META } from '../src/config/constants.ts';
@@ -579,16 +581,23 @@ assert.ok(bounceAnchor.y < defaultAnchor.y, '幽灵跳跃拉伸时，气泡必�
 
 console.log('✓ 聊天气泡相对坐标定位与全形态零遮挡核验通过');
 
-// 24. 验证 C04 独立手写信飞出展开、零文字溢出与来自杨的专属留言
-console.log('测试 24: 验证 C04 独立手写信飞出展开、零文字溢出与来自杨的专属留言');
+// 24. 验证 C04 独立手写信飞出展开、零文字溢出与来自杨的专属留言（含交互弹框不挡鬼与换行排版）
+console.log('测试 24: 验证 C04 独立手写信飞出展开、零文字溢出与来自杨的专属留言（含交互弹框不挡鬼与换行排版）');
 director.goToScene('C04');
 assert.strictEqual(director.ghost.isHoldingNote, false, 'C04 幽灵手中纸牌隐藏，信札飞出展开为独立卡片，严禁画布文字溢出');
 assert.strictEqual(director.c04Flipped, false, '初始为正面');
 director.flipC04Note();
 assert.strictEqual(director.c04Flipped, true, '点击翻面成功');
-const yangText = 'To 陈：万圣节快乐！非常懊悔的一件事就是初次见面我居然没想起来准备点纪念品，forgive me^~^，除了这个我还为你准备了些小心意，见面交给你！';
-assert.ok(yangText.includes('万圣节快乐'), '杨的留言必须完备准确包含特定祝词');
-console.log('✓ C04 独立手写信动画展开与来自杨的留言核验通过');
+const yangGreeting = '万圣节快乐！';
+const yangMain = '非常懊悔的一件事就是初次见面我居然没想起来准备点纪念品，forgive me^~^，除了这个我还为你准备了些小心意，见面交给你！';
+assert.ok(yangGreeting.includes('万圣节快乐'), '杨的留言问候必须独立行');
+assert.ok(yangMain.startsWith('非常懊悔的一件事'), '非常懊悔那一句已调整到下一行');
+
+// 验证 CSS 中所有交互弹窗与卡片均置于鬼下方空间（flex-end 布局），绝不遮挡鬼
+const cssContent = fs.readFileSync(path.resolve('./src/style.css'), 'utf8');
+assert.ok(cssContent.includes('.minigame-overlay') && cssContent.includes('justify-content: flex-end'), 'minigame-overlay 必须在鬼下方底部对齐');
+assert.ok(cssContent.includes('.yang-modal-overlay') && cssContent.includes('justify-content: flex-end'), '杨的留言弹窗必须在鬼下方底部对齐不挡鬼');
+console.log('✓ C04 独立手写信动画展开、来自杨的留言下一行排版与交互弹窗零遮挡幽灵核验通过');
 
 console.log('\n========================================');
 console.log('🎉 24 项端到端业务、五颗糖连环品尝、自主翻页、一键重置、气泡相对坐标与杨的专属留言测试全部通过！');

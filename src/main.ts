@@ -2135,12 +2135,14 @@ class GameApp {
   private showYangMessageModal(): void {
     this.audio.playSfx('pageFlip');
     this.modalOverlay.style.display = 'flex';
+    this.modalOverlay.className = 'modal-overlay yang-modal-overlay';
     this.modalOverlay.innerHTML = `
       <div class="yang-message-modal">
         <div class="yang-modal-stamp">🎃 10.31 万圣夜</div>
         <div class="yang-modal-header">To 陈：</div>
         <div class="yang-modal-body">
-          万圣节快乐！非常懊悔的一件事就是初次见面我居然没想起来准备点纪念品，forgive me^~^，除了这个我还为你准备了些小心意，见面交给你！
+          <div class="yang-modal-greeting">万圣节快乐！</div>
+          <div class="yang-modal-main">非常懊悔的一件事就是初次见面我居然没想起来准备点纪念品，forgive me^~^，除了这个我还为你准备了些小心意，见面交给你！</div>
         </div>
         <div class="yang-modal-signature">—— 来自杨的留言 💌</div>
         <div class="yang-modal-footer">
@@ -2151,11 +2153,13 @@ class GameApp {
 
     this.modalOverlay.querySelector('.yang-close-btn')?.addEventListener('click', () => {
       this.modalOverlay.style.display = 'none';
+      this.modalOverlay.className = 'modal-overlay';
     });
 
     this.modalOverlay.onclick = (e) => {
       if (e.target === this.modalOverlay) {
         this.modalOverlay.style.display = 'none';
+        this.modalOverlay.className = 'modal-overlay';
       }
     };
   }
