@@ -968,10 +968,11 @@ export class SceneDirector {
     if (this.c01SignTapped) return;
     this.c01SignTapped = true;
     this.currentPhase = 'interactive';
-    this.ghost.setAction('bounce', 0.8);
+    this.ghost.isHoldingNote = false;
+    this.ghost.setAction('bounce', 1.0);
     this.ghost.expression = 'joy';
     this.audio.playSfx('boop');
-    this.setGuide('半糖看起来很高兴。点击下方翻页开始挑选糖果。', 'hint');
+    this.setGuide('半糖放下了小纸牌，看起来很高兴。点击下方翻页开始挑选糖果。', 'hint');
     this.setGhostSpeech(CHAPTER_SCRIPTS.C01.tapResponse);
     if (this.onActionControlsUpdated) this.onActionControlsUpdated();
   }

@@ -147,8 +147,14 @@ class GameApp {
     this.director.onGhostSpeechUpdated = (text) => {
       if (text) {
         this.ghostBubbleText.innerText = text;
+        this.ghostSpeechBubble.style.display = 'flex';
         this.ghostSpeechBubble.classList.add('visible');
+        const gx = this.ghost.x || (this.width / 2);
+        const gy = (this.ghost.y || (this.height * 0.48)) - 80 + (this.ghost.floatOffsetY || 0);
+        this.ghostSpeechBubble.style.left = `${Math.round(gx)}px`;
+        this.ghostSpeechBubble.style.top = `${Math.round(gy)}px`;
       } else {
+        this.ghostSpeechBubble.style.display = 'none';
         this.ghostSpeechBubble.classList.remove('visible');
       }
     };
@@ -237,7 +243,7 @@ class GameApp {
 
     // Adjust ghost position to center of stage
     this.ghost.x = this.width / 2;
-    this.ghost.y = this.height * 0.52;
+    this.ghost.y = this.height * 0.48;
 
     // Adjust candy rain rail (P0-01: match bottom rail physics)
     this.director.candyRain.stageWidth = this.width;
@@ -629,17 +635,17 @@ class GameApp {
 
   // --- Header Updating ---
   private updateHeader(scene: SceneId): void {
-    let indicator = '第一页 · 遇见';
+    let indicator = '第一页 · 遇见 ｜ 第一章：有只鬼掉进了书里';
     if (scene === 'C01') {
-      indicator = '第一页 · 遇见';
+      indicator = '第一页 · 遇见 ｜ 第一章：有只鬼掉进了书里';
     } else if (scene === 'C02') {
       const step = Math.min(5, this.director.eatenCandiesInRun.length + 1);
-      indicator = `第二页 · 选糖 (${step}/5) · 品尝夜色`;
+      indicator = `第二页 · 一颗糖 (${step}/5) ｜ 第二章：给一只鬼一颗糖`;
     } else if (scene === 'C03') {
       const step = Math.min(5, this.director.eatenCandiesInRun.length);
-      indicator = `第三页 · 小小后遗症 (${step}/5)`;
+      indicator = `第三页 · 小小后遗症 (${step}/5) ｜ 第三章：小小后遗症`;
     } else if (scene === 'C04') {
-      indicator = '终章 · 五味俱全的手写信';
+      indicator = '终章 · 五味俱全的手写信 ｜ 终章：一张被墨水浸透的回礼';
     } else if (scene === 'S27') {
       indicator = '夜班 · 自由喂养';
     } else if (scene === 'S28') {
@@ -2179,7 +2185,7 @@ class GameApp {
     // Dynamic positioning of ghost speech bubble
     if (this.ghostSpeechBubble && this.ghostSpeechBubble.classList.contains('visible')) {
       const gx = this.ghost.x;
-      const gy = this.ghost.y - 75 + this.ghost.floatOffsetY;
+      const gy = this.ghost.y - 80 + this.ghost.floatOffsetY;
       this.ghostSpeechBubble.style.left = `${Math.round(gx)}px`;
       this.ghostSpeechBubble.style.top = `${Math.round(gy)}px`;
     }

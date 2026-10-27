@@ -101,9 +101,14 @@ html, body {
 }
 
 .page-indicator {
-  font-size: 14px;
+  font-size: 13px;
   color: var(--color-ink-light);
-  letter-spacing: 1px;
+  letter-spacing: 0.5px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: calc(100% - 195px);
 }
 
 .header-actions {
@@ -183,7 +188,7 @@ html, body {
 }
 
 .ghost-speech-bubble.visible {
-  display: flex;
+  display: flex !important;
   animation: bubblePopIn 0.22s ease-out;
 }
 
@@ -218,11 +223,12 @@ html, body {
 .ghost-speech-bubble .bubble-tail {
   position: absolute;
   bottom: -9px;
-  left: 20px;
+  left: 50%;
+  transform: translateX(-50%);
   width: 0;
   height: 0;
-  border-left: 6px solid transparent;
-  border-right: 6px solid transparent;
+  border-left: 7px solid transparent;
+  border-right: 7px solid transparent;
   border-top: 9px solid var(--color-ink-brown);
 }
 
@@ -230,19 +236,19 @@ html, body {
   content: '';
   position: absolute;
   top: -11px;
-  left: -5px;
+  left: -6px;
   width: 0;
   height: 0;
-  border-left: 5px solid transparent;
-  border-right: 5px solid transparent;
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
   border-top: 8px solid var(--color-paper-light);
 }
 
 .subtitle-container {
   position: absolute;
-  top: 14px;
-  left: 20px;
-  right: 20px;
+  bottom: 14px;
+  left: 16px;
+  right: 16px;
   z-index: 30;
   display: flex;
   flex-direction: column;
