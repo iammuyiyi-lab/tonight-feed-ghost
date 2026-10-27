@@ -9,14 +9,16 @@ interface MusicBoxNote {
 
 export class AudioDirector {
   private ctx: AudioContext | null = null;
-  private bgmGain: GainNode | null = null;
-  private sfxGain: GainNode | null = null;
   private masterGain: GainNode | null = null;
+  private bgmGain: GainNode | null = null;
+  private currentBgmBus: GainNode | null = null;
+  private sfxGain: GainNode | null = null;
   private currentTrack: AudioTrack = 'none';
   private loopTimer: number | null = null;
   private isUnlocked: boolean = false;
   private bgmEnabled: boolean = true;
   private sfxEnabled: boolean = true;
+  private activeOscillators: OscillatorNode[] = [];
 
   constructor() {
     if (typeof document !== 'undefined') {
@@ -38,8 +40,8 @@ export class AudioDirector {
    * Unlock Web Audio API on user gesture.
    */
   public async unlock(): Promise<boolean> {
+    if (typeof window === 'undefined') return false;
     try {
-      if (typeof window === 'undefined') return false;
       const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
       if (!AudioCtx) return false;
 
@@ -62,6 +64,9 @@ export class AudioDirector {
         await this.ctx.resume();
       }
 
+      if (this.isUnlocked) {
+        return true;
+      }
       this.isUnlocked = true;
 
       // If a background track is pending, start it immediately!
@@ -88,10 +93,28 @@ export class AudioDirector {
 
   // --- BGM Synthesis ---
   public playTrack(track: AudioTrack): void {
-    if (this.currentTrack === track && this.loopTimer !== null) return;
+    if (track === 'none') {
+      this.stopTrack();
+      return;
+    }
+
+    // All main story chapters (C01, C02, C03, C04) share the same continuous gentle theme
+    const isMainStoryTrack = (t: AudioTrack) =>
+      t === 'cover' || t === 'feeding' || t === 'transform' || t === 'ending';
+
+    // If main story BGM is already actively playing, keep playing smoothly across chapters!
+    // NEVER cut, restart, or switch when turning pages or clicking buttons.
+    if (isMainStoryTrack(this.currentTrack) && isMainStoryTrack(track) && this.loopTimer !== null) {
+      this.currentTrack = track; // sync logical track without interrupting audio
+      return;
+    }
+
+    if (this.currentTrack === track && this.loopTimer !== null) {
+      return;
+    }
+
     this.stopTrack();
     this.currentTrack = track;
-    if (track === 'none') return;
 
     if (!this.ctx || !this.isUnlocked || this.ctx.state !== 'running') {
       this.unlock().then(() => {
@@ -111,29 +134,64 @@ export class AudioDirector {
       window.clearTimeout(this.loopTimer);
       this.loopTimer = null;
     }
+
+    // Cleanly and immediately ramp down & disconnect previous track bus
+    if (this.currentBgmBus && this.ctx) {
+      try {
+        const t = this.ctx.currentTime;
+        this.currentBgmBus.gain.setValueAtTime(this.currentBgmBus.gain.value, t);
+        this.currentBgmBus.gain.linearRampToValueAtTime(0.0001, t + 0.05);
+        const oldBus = this.currentBgmBus;
+        setTimeout(() => {
+          try {
+            oldBus.disconnect();
+          } catch (_) {}
+        }, 60);
+      } catch (_) {}
+      this.currentBgmBus = null;
+    }
+
+    // Stop all active scheduled oscillators immediately
+    for (const osc of this.activeOscillators) {
+      try {
+        osc.stop();
+        osc.disconnect();
+      } catch (_) {}
+    }
+    this.activeOscillators = [];
   }
 
   private startTrackLoop(track: AudioTrack): void {
     if (this.currentTrack !== track || !this.ctx || !this.bgmGain) return;
 
+    // Create a fresh dedicated bus for this cycle
+    if (!this.currentBgmBus) {
+      this.currentBgmBus = this.ctx.createGain();
+      this.currentBgmBus.gain.setValueAtTime(1.0, this.ctx.currentTime);
+      this.currentBgmBus.connect(this.bgmGain);
+    }
+
     const cycleDuration = this.scheduleTrackCycle(track);
     this.loopTimer = window.setTimeout(() => {
       this.startTrackLoop(track);
-    }, Math.max(1000, (cycleDuration - 0.25) * 1000));
+    }, Math.max(1000, (cycleDuration - 0.20) * 1000));
   }
 
   /**
-   * Pure, gentle, warm Music Box / Celesta lullabies.
+   * Pure, gentle, warm Music Box / Celesta lullaby.
    * Completely clean sine waves with delicate acoustic strike and natural exponential decay.
    * Zero distortion, zero harshness, zero dissonant drone.
    */
   private scheduleTrackCycle(track: AudioTrack): number {
-    if (!this.ctx || !this.bgmGain) return 6;
+    if (!this.ctx || !this.currentBgmBus) return 6;
     const now = this.ctx.currentTime;
 
     switch (track) {
-      case 'cover': {
-        // C01 & Title: Gentle Music Box Lullaby (G Major, 32.0s loop)
+      case 'cover':
+      case 'feeding':
+      case 'transform':
+      case 'ending': {
+        // Continuous, warm, gentle, sweet Music Box Lullaby (G Major, 32.0s loop)
         const totalDuration = 32.0;
 
         const notes: MusicBoxNote[] = [
@@ -252,120 +310,18 @@ export class AudioDirector {
         return totalDuration;
       }
 
-      case 'feeding': {
-        // C02: Soft, warm 3-beat sweet milk lullaby in C Major (24.0s)
-        const totalDuration = 24.0;
-
+      case 'rain': {
+        const totalDuration = 16.0;
         const notes: MusicBoxNote[] = [
-          // Phrase 1 (C -> G/B -> Am7 -> Em)
-          { f: 261.63, t: 0.0, d: 2.0, v: 0.15 }, { f: 523.25, t: 0.0, d: 2.2, v: 0.20 },
-          { f: 329.63, t: 0.7, d: 1.4, v: 0.12 }, { f: 392.00, t: 1.4, d: 1.4, v: 0.12 },
-          { f: 246.94, t: 2.2, d: 2.0, v: 0.14 }, { f: 493.88, t: 2.2, d: 2.0, v: 0.19 },
-          { f: 293.66, t: 2.9, d: 1.4, v: 0.12 }, { f: 392.00, t: 3.6, d: 1.4, v: 0.12 },
-          { f: 220.00, t: 4.4, d: 2.0, v: 0.14 }, { f: 440.00, t: 4.4, d: 2.0, v: 0.19 },
-          { f: 261.63, t: 5.1, d: 1.4, v: 0.12 }, { f: 329.63, t: 5.8, d: 1.4, v: 0.12 },
-          { f: 164.81, t: 6.6, d: 2.0, v: 0.14 }, { f: 392.00, t: 6.6, d: 2.0, v: 0.18 },
-          { f: 246.94, t: 7.3, d: 1.4, v: 0.12 }, { f: 329.63, t: 8.0, d: 1.4, v: 0.12 },
-
-          // Phrase 2 (F -> C/E -> Dm7 -> G7)
-          { f: 174.61, t: 8.8, d: 2.0, v: 0.14 }, { f: 349.23, t: 8.8, d: 1.8, v: 0.18 },
-          { f: 261.63, t: 9.5, d: 1.4, v: 0.12 }, { f: 440.00, t: 10.2, d: 1.5, v: 0.18 },
-          { f: 164.81, t: 11.0, d: 2.0, v: 0.14 }, { f: 329.63, t: 11.0, d: 1.8, v: 0.18 },
-          { f: 261.63, t: 11.7, d: 1.4, v: 0.12 }, { f: 392.00, t: 12.4, d: 1.5, v: 0.18 },
-          { f: 146.83, t: 13.2, d: 2.0, v: 0.14 }, { f: 293.66, t: 13.2, d: 1.8, v: 0.18 },
-          { f: 220.00, t: 13.9, d: 1.4, v: 0.12 }, { f: 349.23, t: 14.6, d: 1.5, v: 0.18 },
-          { f: 196.00, t: 15.4, d: 2.0, v: 0.14 }, { f: 392.00, t: 15.4, d: 2.0, v: 0.19 },
-          { f: 246.94, t: 16.1, d: 1.4, v: 0.12 }, { f: 293.66, t: 16.8, d: 1.4, v: 0.12 },
-
-          // Phrase 3 (Sweet resolution to high C chime)
-          { f: 261.63, t: 17.6, d: 2.0, v: 0.15 }, { f: 523.25, t: 17.6, d: 2.0, v: 0.20 },
-          { f: 329.63, t: 18.3, d: 1.4, v: 0.12 }, { f: 659.25, t: 19.0, d: 2.0, v: 0.21 },
-          { f: 196.00, t: 19.8, d: 2.0, v: 0.14 }, { f: 587.33, t: 19.8, d: 2.0, v: 0.20 },
-          { f: 246.94, t: 20.5, d: 1.4, v: 0.12 }, { f: 493.88, t: 21.2, d: 1.8, v: 0.19 },
-          { f: 261.63, t: 22.0, d: 2.5, v: 0.16 }, { f: 523.25, t: 22.0, d: 2.8, v: 0.22 },
+          { f: 392.00, t: 0.0, d: 1.2, v: 0.18 },
+          { f: 523.25, t: 0.5, d: 1.2, v: 0.18 },
+          { f: 659.25, t: 1.0, d: 1.2, v: 0.20 },
+          { f: 783.99, t: 1.5, d: 1.4, v: 0.20 },
+          { f: 587.33, t: 2.5, d: 1.2, v: 0.18 },
+          { f: 493.88, t: 3.0, d: 1.2, v: 0.18 },
+          { f: 392.00, t: 3.5, d: 1.6, v: 0.20 },
         ];
-
-        notes.forEach((n) => this.playMusicBoxNote(n.f, now + n.t, n.d ?? 1.8, n.v ?? 0.18));
-        return totalDuration;
-      }
-
-      case 'transform': {
-        // C03: Dreamy, sparkling celestial music box (G Major, 24.0s)
-        const totalDuration = 24.0;
-
-        const notes: MusicBoxNote[] = [
-          { f: 392.00, t: 0.0, d: 1.8, v: 0.18 }, // G4
-          { f: 493.88, t: 0.6, d: 1.6, v: 0.17 }, // B4
-          { f: 587.33, t: 1.2, d: 2.0, v: 0.20 }, // D5
-          { f: 659.25, t: 2.0, d: 1.8, v: 0.20 }, // E5
-          { f: 587.33, t: 2.8, d: 1.6, v: 0.18 }, // D5
-          { f: 493.88, t: 3.4, d: 1.6, v: 0.17 }, // B4
-
-          { f: 440.00, t: 4.2, d: 1.8, v: 0.18 }, // A4
-          { f: 523.25, t: 4.8, d: 1.6, v: 0.17 }, // C5
-          { f: 659.25, t: 5.4, d: 2.0, v: 0.20 }, // E5
-          { f: 587.33, t: 6.2, d: 1.8, v: 0.18 }, // D5
-          { f: 440.00, t: 7.0, d: 1.6, v: 0.17 }, // A4
-
-          { f: 392.00, t: 8.0, d: 1.8, v: 0.18 }, // G4
-          { f: 493.88, t: 8.6, d: 1.6, v: 0.17 }, // B4
-          { f: 783.99, t: 9.2, d: 2.2, v: 0.22 }, // G5 (Starlight spark)
-          { f: 659.25, t: 10.2, d: 1.8, v: 0.19 },// E5
-          { f: 587.33, t: 11.0, d: 1.8, v: 0.18 },// D5
-
-          { f: 523.25, t: 12.0, d: 1.8, v: 0.18 },// C5
-          { f: 493.88, t: 12.8, d: 1.6, v: 0.17 },// B4
-          { f: 440.00, t: 13.6, d: 1.8, v: 0.18 },// A4
-          { f: 392.00, t: 14.6, d: 2.2, v: 0.20 },// G4
-
-          { f: 587.33, t: 16.0, d: 1.8, v: 0.18 },// D5
-          { f: 659.25, t: 16.8, d: 1.8, v: 0.19 },// E5
-          { f: 783.99, t: 17.6, d: 2.2, v: 0.22 },// G5
-          { f: 880.00, t: 18.6, d: 1.8, v: 0.20 },// A5
-          { f: 783.99, t: 19.4, d: 2.0, v: 0.20 },// G5
-          { f: 587.33, t: 20.2, d: 1.8, v: 0.18 },// D5
-
-          { f: 493.88, t: 21.2, d: 2.0, v: 0.18 },// B4
-          { f: 392.00, t: 22.2, d: 2.6, v: 0.22 },// G4
-        ];
-
-        notes.forEach((n) => this.playMusicBoxNote(n.f, now + n.t, n.d ?? 1.8, n.v ?? 0.18));
-        return totalDuration;
-      }
-
-      case 'ending': {
-        // C04: Tender, heartwarming midnight lullaby (G Major, 28.0s)
-        const totalDuration = 28.0;
-
-        const notes: MusicBoxNote[] = [
-          // Slow, peaceful, reverberant bedtime bells
-          { f: 392.00, t: 0.0, d: 2.6, v: 0.20 },  // G4
-          { f: 196.00, t: 0.0, d: 2.6, v: 0.14 },  // G3
-          { f: 493.88, t: 1.6, d: 2.2, v: 0.19 },  // B4
-          { f: 587.33, t: 3.2, d: 2.8, v: 0.22 },  // D5
-          { f: 293.66, t: 3.2, d: 2.8, v: 0.13 },  // D4
-
-          { f: 659.25, t: 5.6, d: 2.4, v: 0.21 },  // E5
-          { f: 587.33, t: 7.2, d: 2.0, v: 0.19 },  // D5
-          { f: 493.88, t: 8.8, d: 2.6, v: 0.20 },  // B4
-          { f: 246.94, t: 8.8, d: 2.6, v: 0.13 },  // B3
-
-          { f: 440.00, t: 11.2, d: 2.4, v: 0.19 }, // A4
-          { f: 523.25, t: 12.8, d: 2.2, v: 0.19 }, // C5
-          { f: 659.25, t: 14.4, d: 2.6, v: 0.22 }, // E5
-          { f: 261.63, t: 14.4, d: 2.6, v: 0.14 }, // C4
-
-          { f: 587.33, t: 16.8, d: 2.4, v: 0.20 }, // D5
-          { f: 493.88, t: 18.4, d: 2.2, v: 0.18 }, // B4
-          { f: 440.00, t: 20.0, d: 2.6, v: 0.19 }, // A4
-          { f: 293.66, t: 20.0, d: 2.6, v: 0.13 }, // D4
-
-          { f: 392.00, t: 22.4, d: 2.6, v: 0.20 }, // G4
-          { f: 587.33, t: 24.0, d: 2.6, v: 0.21 }, // D5
-          { f: 783.99, t: 25.6, d: 3.5, v: 0.23 }, // G5 (Distant peaceful chime lingering...)
-        ];
-
-        notes.forEach((n) => this.playMusicBoxNote(n.f, now + n.t, n.d ?? 2.0, n.v ?? 0.18));
+        notes.forEach((n) => this.playMusicBoxNote(n.f, now + n.t, n.d ?? 1.2, n.v ?? 0.18));
         return totalDuration;
       }
 
@@ -383,7 +339,7 @@ export class AudioDirector {
     duration: number = 1.8,
     volume: number = 0.18
   ): void {
-    if (!this.ctx || !this.bgmGain) return;
+    if (!this.ctx || !this.currentBgmBus) return;
     try {
       const now = startTime;
       const osc1 = this.ctx.createOscillator();
@@ -419,12 +375,21 @@ export class AudioDirector {
       osc2.connect(osc2Gain);
       osc2Gain.connect(filter);
 
-      filter.connect(this.bgmGain);
+      filter.connect(this.currentBgmBus);
 
       osc1.start(now);
       osc2.start(now);
-      osc1.stop(now + duration + 0.05);
-      osc2.stop(now + duration + 0.05);
+      const stopTime = now + duration + 0.05;
+      osc1.stop(stopTime);
+      osc2.stop(stopTime);
+
+      this.activeOscillators.push(osc1, osc2);
+      osc1.onended = () => {
+        const i1 = this.activeOscillators.indexOf(osc1);
+        if (i1 !== -1) this.activeOscillators.splice(i1, 1);
+        const i2 = this.activeOscillators.indexOf(osc2);
+        if (i2 !== -1) this.activeOscillators.splice(i2, 1);
+      };
     } catch (e) {
       // Audio node scheduling guard
     }
@@ -612,7 +577,6 @@ export class AudioDirector {
         }
 
         default:
-          this.playMusicBoxNote(440, now, 0.15, 0.20);
           break;
       }
     } catch (e) {

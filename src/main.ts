@@ -113,7 +113,13 @@ class GameApp {
     this.audio.setSettings(savedAudioState.settings.bgmEnabled, savedAudioState.settings.sfxEnabled);
 
     // Global audio unlock on first user gesture anywhere (using capture to bypass stopPropagation)
+    let audioUnlockedOnce = false;
     const unlockAudioOnGesture = async () => {
+      if (audioUnlockedOnce) return;
+      audioUnlockedOnce = true;
+      ['pointerdown', 'touchstart', 'mousedown', 'click', 'keydown'].forEach((evt) => {
+        window.removeEventListener(evt, unlockAudioOnGesture, { capture: true });
+      });
       await this.audio.unlock();
       this.director.ensureAudioForCurrentScene();
     };
