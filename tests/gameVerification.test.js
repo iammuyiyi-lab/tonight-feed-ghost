@@ -421,6 +421,33 @@ const v2MainlineSeconds = 25 + 35 + 45 + 35;
 assert.ok(v2MainlineSeconds >= 120 && v2MainlineSeconds <= 240, `V2首通时长必须控制在 120~240 秒区间内，当前为 ${v2MainlineSeconds} 秒`);
 console.log(`✓ 节奏与时长仿真达标：约 ${Math.floor(v2MainlineSeconds / 60)} 分 ${v2MainlineSeconds % 60} 秒（完美控制在 2—4 分钟）`);
 
+// 19. 验证幽灵对白气泡与旁白提示彻底分流，转场动画精简至 0.9-1.4s
+console.log('测试 19: 验证幽灵对白气泡与旁白提示彻底分流，转场精简至 0.9-1.4s');
+let capturedGhostSpeech = '';
+let capturedGuide = '';
+let capturedGuideType = '';
+
+director.onGhostSpeechUpdated = (text) => {
+  capturedGhostSpeech = text;
+};
+director.onGuideUpdated = (text, type) => {
+  capturedGuide = text;
+  capturedGuideType = type;
+};
+
+director.setGhostSpeech('我是幽灵半糖说的话');
+assert.strictEqual(capturedGhostSpeech, '我是幽灵半糖说的话', '半糖角色台词必须正确分发到幽灵跟随聊天气泡');
+
+director.setGuide('这是书本旁白说明', 'narration');
+assert.strictEqual(capturedGuide, '这是书本旁白说明');
+assert.strictEqual(capturedGuideType, 'narration', '书页叙事必须正确分发到旁白框');
+
+director.setGuide('这是操作提示', 'hint');
+assert.strictEqual(capturedGuide, '这是操作提示');
+assert.strictEqual(capturedGuideType, 'hint', '玩法指导必须正确分发到提示框');
+
+console.log('✓ 幽灵跟随气泡与旁白/提示彻底分流核验通过');
+
 console.log('\n========================================');
-console.log('🎉 18 项端到端业务、P0彻底删除接糖、V2.0全新四章绘本体验回归测试全部通过！');
+console.log('🎉 19 项端到端业务、P0彻底删除接糖、跟随气泡与短转场体验回归测试全部通过！');
 console.log('========================================');

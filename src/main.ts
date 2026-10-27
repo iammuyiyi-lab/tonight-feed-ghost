@@ -30,6 +30,7 @@ class GameApp {
   private pageIndicator: HTMLElement;
   private subtitleContainer: HTMLElement;
   private subtitleTextEl: HTMLElement;
+  private subtitleTagEl: HTMLElement;
   private skipHintEl: HTMLElement;
   private minigameOverlay: HTMLElement;
   private bottomActionRow: HTMLElement;
@@ -37,12 +38,26 @@ class GameApp {
   private settingsBtn: HTMLElement;
   private handbookBtn: HTMLElement;
   private transientBubbleEl: HTMLElement;
+  private ghostSpeechBubble: HTMLElement;
+  private ghostBubbleText: HTMLElement;
 
   // Dragging candy state
   private draggingCandy: CandyType | null = null;
   private candyDragX: number = 0;
   private candyDragY: number = 0;
   private candyTeaseTracker: { approached: boolean; count: number } = { approached: false, count: 0 };
+
+  // Flying candy animation state
+  private flyingCandy: {
+    type: CandyType;
+    startX: number;
+    startY: number;
+    targetX: number;
+    targetY: number;
+    progress: number;
+    duration: number;
+    onComplete: () => void;
+  } | null = null;
 
   // S04 / P01 Trial Candy screen position
   private s04CandyPos = { x: 180, y: 380 };
@@ -72,6 +87,7 @@ class GameApp {
     this.pageIndicator = document.getElementById('pageIndicator')!;
     this.subtitleContainer = document.getElementById('subtitleContainer')!;
     this.subtitleTextEl = document.getElementById('subtitleText')!;
+    this.subtitleTagEl = document.getElementById('subtitleTag')!;
     this.skipHintEl = document.getElementById('skipHint')!;
     this.minigameOverlay = document.getElementById('minigameOverlay')!;
     this.bottomActionRow = document.getElementById('bottomActionRow')!;
@@ -79,6 +95,8 @@ class GameApp {
     this.settingsBtn = document.getElementById('settingsBtn')!;
     this.handbookBtn = document.getElementById('handbookBtn')!;
     this.transientBubbleEl = document.getElementById('transientBubble') || document.createElement('div');
+    this.ghostSpeechBubble = document.getElementById('ghostSpeechBubble')!;
+    this.ghostBubbleText = document.getElementById('ghostBubbleText')!;
 
     this.input = new InputRouter(this.stageContainer);
 
@@ -109,10 +127,50 @@ class GameApp {
       this.renderControlsForScene(scene);
     };
 
-    // Subtitle updated hook
+    // Subtitle updated hook (fallback / backwards compat)
     this.director.onSubtitleUpdated = (text, isDone) => {
-      this.subtitleTextEl.innerText = text;
+      if (text) {
+        this.subtitleTextEl.innerText = text;
+        this.subtitleContainer.style.opacity = '1';
+        this.subtitleContainer.style.pointerEvents = 'auto';
+      } else {
+        this.subtitleTextEl.innerText = '';
+        this.subtitleContainer.style.opacity = '0';
+        this.subtitleContainer.style.pointerEvents = 'none';
+      }
       this.skipHintEl.style.opacity = isDone ? '0' : '0.7';
+    };
+
+    // Ghost speech bubble hook (character dialogue)
+    this.director.onGhostSpeechUpdated = (text) => {
+      if (text) {
+        this.ghostBubbleText.innerText = text;
+        this.ghostSpeechBubble.classList.add('visible');
+      } else {
+        this.ghostSpeechBubble.classList.remove('visible');
+      }
+    };
+
+    // Guide narration / hint hook
+    this.director.onGuideUpdated = (text, type) => {
+      if (this.subtitleTagEl) {
+        if (type === 'hint') {
+          this.subtitleTagEl.innerText = '💡 提示';
+          this.subtitleTagEl.className = 'subtitle-tag tag-hint';
+        } else {
+          this.subtitleTagEl.innerText = '📖 旁白';
+          this.subtitleTagEl.className = 'subtitle-tag tag-narration';
+        }
+      }
+      if (text) {
+        this.subtitleTextEl.innerText = text;
+        this.subtitleContainer.style.opacity = '1';
+        this.subtitleContainer.style.pointerEvents = 'auto';
+      } else {
+        this.subtitleTextEl.innerText = '';
+        this.subtitleContainer.style.opacity = '0';
+        this.subtitleContainer.style.pointerEvents = 'none';
+      }
     };
 
     // Decoupled transient bubble hook (P0-02)
@@ -223,6 +281,127 @@ class GameApp {
         this.director.candyRain.isPaused = false;
       }
     });
+
+    // Global window listeners for candy drag interaction
+    window.addEventListener('pointermove', (e) => {
+      if (this.draggingCandy) {
+        const rect = this.stageContainer.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+        this.candyDragX = x;
+        this.candyDragY = y;
+        this.ghost.setLookAt(x, y, this.ghost.x, this.ghost.y);
+
+        const mouthX = this.ghost.x;
+        const mouthY = this.ghost.y - 14;
+        const dist = Math.sqrt((x - mouthX) ** 2 + (y - mouthY) ** 2);
+        if (dist < 85) {
+          this.ghost.setAction('anticipate');
+          this.candyTeaseTracker.approached = true;
+        } else if (this.candyTeaseTracker.approached && dist > 140) {
+          this.candyTeaseTracker.approached = false;
+          this.candyTeaseTracker.count++;
+          if (this.candyTeaseTracker.count >= 3) {
+            this.director.registerTeasingCandy();
+          }
+          if (this.ghost.action === 'anticipate') {
+            this.ghost.setAction('idle');
+          }
+        }
+      }
+    });
+
+    window.addEventListener('pointerup', (e) => {
+      if (this.draggingCandy) {
+        const rect = this.stageContainer.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+        this.handleCandyDrop(x, y);
+      }
+    });
+  }
+
+  private startCandyDrag(type: CandyType, clientX: number, clientY: number): void {
+    const rect = this.stageContainer.getBoundingClientRect();
+    this.draggingCandy = type;
+    this.candyDragX = clientX - rect.left;
+    this.candyDragY = clientY - rect.top;
+    this.candyTeaseTracker = { approached: false, count: 0 };
+  }
+
+  private triggerCandyFlyFeed(type: CandyType, fromEl?: HTMLElement, onDone?: () => void): void {
+    let startX = this.width / 2;
+    let startY = this.height - 40;
+    if (fromEl) {
+      const rect = fromEl.getBoundingClientRect();
+      const stageRect = this.stageContainer.getBoundingClientRect();
+      startX = rect.left + rect.width / 2 - stageRect.left;
+      startY = rect.top + rect.height / 2 - stageRect.top;
+    }
+    const targetX = this.ghost.x;
+    const targetY = this.ghost.y - 14;
+
+    this.audio.playSfx('twinkle');
+    this.flyingCandy = {
+      type,
+      startX,
+      startY,
+      targetX,
+      targetY,
+      progress: 0,
+      duration: 0.32,
+      onComplete: () => {
+        this.ghost.setAction('eat', 0.55);
+        this.audio.playSfx('swallow');
+        if (onDone) {
+          onDone();
+        }
+      }
+    };
+  }
+
+  private handleCandyDrop(x: number, y: number): void {
+    if (!this.draggingCandy) return;
+    const type = this.draggingCandy;
+    this.draggingCandy = null;
+
+    const mouthX = this.ghost.x;
+    const mouthY = this.ghost.y - 14;
+    const dist = Math.sqrt((x - mouthX) ** 2 + (y - mouthY) ** 2);
+
+    if (dist < 95) {
+      // Suction and feed!
+      this.ghost.setAction('eat', 0.6);
+      this.audio.playSfx('swallow');
+      if (this.director.currentScene === 'C02') {
+        this.director.feedCandyInC02(type);
+        this.renderControlsForScene('C02');
+      } else if (this.director.currentScene === 'P01') {
+        this.director.p01Fed = true;
+        this.director.feedCandy('pumpkin');
+        this.director.setSubtitle(V2_SCRIPTS.P01.fedLine);
+        this.renderControlsForScene('P01');
+      } else if (this.director.currentScene === 'S04') {
+        this.director.goToScene('S05');
+      } else {
+        const isHungryFeed = this.ghost.action === 'anticipate';
+        this.director.feedCandy(type, isHungryFeed);
+        this.renderControlsForScene(this.director.currentScene);
+      }
+    } else {
+      // Dropped away
+      this.audio.playSfx('boop');
+      this.ghost.setAction('idle');
+      if (this.director.currentScene === 'C02') {
+        this.director.showTransientBubble('糖掉在纸上了。点选下方糖果也可以直接喂给半糖～');
+      } else if (this.director.currentScene === 'P01') {
+        this.ghost.setAction('angry', 1.0);
+        this.director.showTransientBubble('拖偏了。可以点选糖果直接喂食～');
+      } else if (this.director.currentScene === 'S04') {
+        this.ghost.setAction('angry', 1.0);
+        this.director.showDialogueQueue([SCENE_SCRIPTS.S04.wrongDrop]);
+      }
+    }
   }
 
   private bindInputEvents(): void {
@@ -234,29 +413,6 @@ class GameApp {
       if (['P02', 'S10', 'S11', 'S12'].includes(this.director.currentScene) && this.input.pointer.isDown) {
         this.director.candyRain.ghostX = Math.max(50, Math.min(this.width - 50, x));
         this.ghost.x = this.director.candyRain.ghostX;
-      }
-
-      // Handle dragging candy in feeding scenes
-      if (this.draggingCandy) {
-        this.candyDragX = x;
-        this.candyDragY = y;
-
-        // Check distance to ghost mouth
-        const mouthX = this.ghost.x;
-        const mouthY = this.ghost.y - 14;
-        const dist = Math.sqrt((x - mouthX) ** 2 + (y - mouthY) ** 2);
-
-        if (dist < 60) {
-          this.ghost.setAction('anticipate');
-          this.candyTeaseTracker.approached = true;
-        } else if (this.candyTeaseTracker.approached && dist > 140) {
-          // Teased ghost!
-          this.candyTeaseTracker.approached = false;
-          this.candyTeaseTracker.count++;
-          if (this.candyTeaseTracker.count >= 3) {
-            this.director.registerTeasingCandy();
-          }
-        }
       }
     };
 
@@ -293,46 +449,7 @@ class GameApp {
     // Drag end: drop candy into ghost mouth
     this.input.onDragEnd = (x, y) => {
       if (this.draggingCandy) {
-        const mouthX = this.ghost.x;
-        const mouthY = this.ghost.y - 14;
-        const dist = Math.sqrt((x - mouthX) ** 2 + (y - mouthY) ** 2);
-
-        if (dist < 72) {
-          // Suction and feed!
-          if (this.director.currentScene === 'C02') {
-            this.director.feedCandyInC02(this.draggingCandy);
-            this.renderControlsForScene('C02');
-          } else if (this.director.currentScene === 'P01') {
-            this.ghost.setAction('eat', 0.6);
-            this.audio.playSfx('swallow');
-            this.director.p01Fed = true;
-            this.director.feedCandy('pumpkin');
-            this.director.setSubtitle(V2_SCRIPTS.P01.fedLine);
-            this.renderControlsForScene('P01');
-          } else if (this.director.currentScene === 'S04') {
-            this.ghost.setAction('eat', 0.6);
-            this.audio.playSfx('swallow');
-            this.director.goToScene('S05');
-          } else {
-            // Check if hungry without teasing
-            const isHungryFeed = this.ghost.action === 'anticipate';
-            this.director.feedCandy(this.draggingCandy, isHungryFeed);
-            this.renderControlsForScene(this.director.currentScene);
-          }
-        } else {
-          // Dropped on empty floor
-          this.audio.playSfx('boop');
-          if (this.director.currentScene === 'C02') {
-            this.director.showTransientBubble('糖掉在纸上了。请直接点选糖果或拖进嘴里。');
-          } else if (this.director.currentScene === 'P01') {
-            this.ghost.setAction('angry', 1.0);
-            this.director.showTransientBubble('拖偏了。我现在比较脆弱。');
-          } else if (this.director.currentScene === 'S04') {
-            this.ghost.setAction('angry', 1.0);
-            this.director.showDialogueQueue([SCENE_SCRIPTS.S04.wrongDrop]);
-          }
-        }
-        this.draggingCandy = null;
+        this.handleCandyDrop(x, y);
       }
     };
   }
@@ -530,17 +647,17 @@ class GameApp {
 
           candyEl.onclick = (e) => {
             e.stopPropagation();
-            if (this.director.currentPhase === 'interactive') {
-              this.director.feedCandyInC02(type);
-              this.renderControlsForScene('C02');
+            if (this.director.currentPhase === 'interactive' && !this.flyingCandy) {
+              this.triggerCandyFlyFeed(type, candyEl, () => {
+                this.director.feedCandyInC02(type);
+                this.renderControlsForScene('C02');
+              });
             }
           };
 
           candyEl.onpointerdown = (e) => {
-            if (this.director.currentPhase === 'interactive') {
-              this.draggingCandy = type;
-              this.candyDragX = e.clientX;
-              this.candyDragY = e.clientY;
+            if (this.director.currentPhase === 'interactive' && !this.flyingCandy) {
+              this.startCandyDrag(type, e.clientX, e.clientY);
             }
           };
 
@@ -1648,18 +1765,20 @@ class GameApp {
 
       // Touch drag initiation
       item.addEventListener('pointerdown', (e) => {
-        this.draggingCandy = cType;
-        const rect = this.stageContainer.getBoundingClientRect();
-        this.candyDragX = e.clientX - rect.left;
-        this.candyDragY = e.clientY - rect.top;
-        this.candyTeaseTracker = { approached: false, count: 0 };
+        if (!this.flyingCandy) {
+          this.startCandyDrag(cType, e.clientX, e.clientY);
+        }
       });
 
-      // Tap alternative
+      // Tap alternative with animated flying candy
       item.addEventListener('click', () => {
-        const isHungryFeed = this.ghost.action === 'anticipate';
-        this.director.feedCandy(cType, isHungryFeed);
-        this.renderControlsForScene(this.director.currentScene);
+        if (!this.flyingCandy) {
+          this.triggerCandyFlyFeed(cType, item, () => {
+            const isHungryFeed = this.ghost.action === 'anticipate';
+            this.director.feedCandy(cType, isHungryFeed);
+            this.renderControlsForScene(this.director.currentScene);
+          });
+        }
       });
 
       tray.appendChild(item);
@@ -1831,6 +1950,27 @@ class GameApp {
     this.director.update(dt);
     this.input.update(dt);
 
+    // Dynamic positioning of ghost speech bubble
+    if (this.ghostSpeechBubble && this.ghostSpeechBubble.classList.contains('visible')) {
+      const gx = this.ghost.x;
+      const gy = this.ghost.y - 75 + this.ghost.floatOffsetY;
+      this.ghostSpeechBubble.style.left = `${Math.round(gx)}px`;
+      this.ghostSpeechBubble.style.top = `${Math.round(gy)}px`;
+    }
+
+    // Update flying candy animation
+    if (this.flyingCandy) {
+      this.flyingCandy.progress += dt / this.flyingCandy.duration;
+      if (this.flyingCandy.progress >= 0.5 && this.ghost.action !== 'anticipate') {
+        this.ghost.setAction('anticipate');
+      }
+      if (this.flyingCandy.progress >= 1) {
+        const cb = this.flyingCandy.onComplete;
+        this.flyingCandy = null;
+        cb();
+      }
+    }
+
     // Canvas rendering
     this.renderCanvas();
 
@@ -1869,6 +2009,16 @@ class GameApp {
     // 5. Render Dragging Candy under finger
     if (this.draggingCandy) {
       this.renderDraggingCandy(ctx, this.draggingCandy, this.candyDragX, this.candyDragY);
+    }
+
+    // 6. Render Flying Candy Arc
+    if (this.flyingCandy) {
+      const { type, startX, startY, targetX, targetY, progress } = this.flyingCandy;
+      const p = Math.min(1, Math.max(0, progress));
+      const arcY = Math.sin(p * Math.PI) * 70;
+      const curX = startX + (targetX - startX) * p;
+      const curY = startY + (targetY - startY) * p - arcY;
+      this.renderDraggingCandy(ctx, type, curX, curY);
     }
   }
 

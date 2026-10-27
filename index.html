@@ -35,12 +35,20 @@
         <main class="stage-container" id="stageContainer">
           <canvas id="gameCanvas"></canvas>
 
-          <!-- Floating Subtitle & Typewriter Box -->
+          <!-- Real-time Ghost Speech Bubble Following Ghost -->
+          <div class="ghost-speech-bubble" id="ghostSpeechBubble" style="display: none;">
+            <div class="bubble-speaker">👻 半糖</div>
+            <div class="bubble-content" id="ghostBubbleText">有糖吗？</div>
+            <div class="bubble-tail"></div>
+          </div>
+
+          <!-- Floating Narration & Gameplay Guidance Bar -->
           <div class="subtitle-container" id="subtitleContainer">
             <div class="subtitle-box">
+              <span class="subtitle-tag" id="subtitleTag">📖 旁白</span>
               <div class="subtitle-text" id="subtitleText">正在把夜色装订成册……</div>
             </div>
-            <div class="subtitle-skip-hint" id="skipHint">点击文字可快进</div>
+            <div class="subtitle-skip-hint" id="skipHint">点击可快进</div>
           </div>
 
           <!-- Dynamic Minigame Overlays Container -->
