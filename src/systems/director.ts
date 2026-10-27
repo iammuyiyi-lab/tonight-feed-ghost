@@ -95,6 +95,7 @@ export class SceneDirector {
   public c03Finished: boolean = false;
   public c03ChosenDream: string | null = null;
   public c04Flipped: boolean = false;
+  public eatenCandiesInRun: CandyType[] = [];
   public p01Fed: boolean = false;
   public p01IdleTimer: number = 0;
   public p04SelectedQuote: string = '有些夜晚并不特别。有人替它多留了一颗糖。';
@@ -319,6 +320,7 @@ export class SceneDirector {
     this.c03Finished = false;
     this.c03ChosenDream = null;
     this.c04Flipped = false;
+    this.eatenCandiesInRun = [];
 
     this.candyRain.resetEntireRainGame();
     this.pumpkinGame.reset();
@@ -398,10 +400,14 @@ export class SceneDirector {
 
       case 'C02': {
         this.ghost.setAction('idle');
+        this.ghost.form = 'default';
         this.c02SelectedCandy = null;
         this.currentPhase = 'interactive';
-        this.setGuide('它说自己什么都吃。这句话后来被证明不太严谨。', 'narration');
-        this.setGhostSpeech('请给我一颗糖。最好甜一点。');
+        const progressCount = Math.min(4, this.eatenCandiesInRun.length);
+        const stepNote = CHAPTER_SCRIPTS.C02.stepNotes[progressCount] || CHAPTER_SCRIPTS.C02.stepNotes[0];
+        const stepSpeech = CHAPTER_SCRIPTS.C02.ghostSpeechSteps[progressCount] || CHAPTER_SCRIPTS.C02.ghostSpeechSteps[0];
+        this.setGuide(stepNote, 'narration');
+        this.setGhostSpeech(stepSpeech);
         break;
       }
 
@@ -414,25 +420,25 @@ export class SceneDirector {
         if (form === 'pumpkin') {
           this.ghost.hatTilt = -0.38;
           this.ghost.headTiltBack = 0;
-          this.setGuide('它的帽子歪了。帮它正一下。', 'hint');
-          this.setGhostSpeech('头顶有点重……视野歪了。');
+          this.setGuide(CHAPTER_SCRIPTS.C03.pumpkin.prompt, 'hint');
+          this.setGhostSpeech('头顶有点重……视野歪了。秋意正在倾斜。');
         } else if (form === 'milktea') {
           this.ghost.showQuestionPearls = false;
-          this.setGuide('轻轻摇一下，把珍珠晃匀。', 'hint');
-          this.setGhostSpeech('珍珠好像沉底了……');
+          this.setGuide(CHAPTER_SCRIPTS.C03.milktea.prompt, 'hint');
+          this.setGhostSpeech('珍珠好像沉底了……留了一个未完成的悬念。');
         } else if (form === 'poet') {
           this.poetGame.reset();
-          this.setGuide('挑选一个词，替它完成这首即兴短诗。', 'hint');
+          this.setGuide(CHAPTER_SCRIPTS.C03.poet.prompt, 'hint');
           this.setGhostSpeech('我需要一个词来结束这一首烂诗。');
         } else if (form === 'movie') {
           this.movieGame.reset();
-          this.setGuide('给它打个板，开启人生第一幕。', 'hint');
-          this.setGhostSpeech('摄影机在哪里？先打板。');
+          this.setGuide(CHAPTER_SCRIPTS.C03.movie.prompt, 'hint');
+          this.setGhostSpeech('摄影机在哪里？先打板。今晚没有重拍。');
         } else if (form === 'sleepwalk') {
           this.sleepwalkerGame.reset();
           this.ghost.targetFloatOffsetY = -20;
-          this.setGuide('替它选一个梦。', 'hint');
-          this.setGhostSpeech('梦里有好多种可能……');
+          this.setGuide(CHAPTER_SCRIPTS.C03.sleepwalk.prompt, 'hint');
+          this.setGhostSpeech('梦里有好多种可能……替我选一个降落点。');
         }
         break;
       }
@@ -447,8 +453,8 @@ export class SceneDirector {
         this.ghost.isNoteFlipped = false;
         this.c04Flipped = false;
         this.currentPhase = 'interactive';
-        this.setGuide('半糖从怀里掏出一张纸片塞给了你。', 'narration');
-        this.setGhostSpeech('这是给你的回礼。不许嫌弃。');
+        this.setGuide('五页夜色全部品尝完毕，半糖将手写信札郑重递给了你。', 'narration');
+        this.setGhostSpeech('五颗糖都吃完了……这是给你的回礼。不许嫌弃。');
         break;
       }
 
@@ -839,6 +845,10 @@ export class SceneDirector {
     state.feedCounts[type] = (state.feedCounts[type] || 0) + 1;
     this.chapter1FlavorsTried.add(type);
 
+    if (!this.eatenCandiesInRun.includes(type)) {
+      this.eatenCandiesInRun.push(type);
+    }
+
     const candyResp = CANDY_RESPONSES[type] || CANDY_RESPONSES.pumpkin;
     state.mainFormThisRun = candyResp.formId;
     if (!state.playedFormsThisRun.includes(candyResp.formId)) {
@@ -856,15 +866,19 @@ export class SceneDirector {
     // First dialogue
     const comment = candyResp.firstDialogue[0];
     const speech = candyResp.firstDialogue.join(' ');
-    this.setGuide('糖果开始在半糖体内产生奇妙反应……', 'narration');
+    this.setGuide('糖分在纸页上徐徐化开，唤醒了一段夜色……', 'narration');
     this.setGhostSpeech(speech);
 
     const epoch = this.sceneEpoch;
     setTimeout(() => {
       if (this.sceneEpoch !== epoch) return;
       this.ghost.targetLookY = 0.85;
-      this.setGuide('半糖低头看了看自己，似乎发生了轻微异常。', 'narration');
-      this.setGhostSpeech('等一下，这颗糖有一点副作用。说明书早就过期了。');
+      const abLines = (CHAPTER_SCRIPTS.C02.abnormality as any)[type] || [
+        '等一下，这颗糖有一点副作用。',
+        '说明书早就过期了。',
+      ];
+      this.setGuide('半糖低头端详自己，身体发生了奇妙的诗意异变。', 'narration');
+      this.setGhostSpeech(abLines.join(' '));
       setTimeout(() => {
         if (this.sceneEpoch === epoch) {
           this.goToScene('C03');
@@ -896,6 +910,32 @@ export class SceneDirector {
     }, 900);
   }
 
+  public advanceFromC03(): void {
+    this.audio.playSfx('pageFlip');
+    if (this.eatenCandiesInRun.length < 5) {
+      this.goToScene('C02');
+    } else {
+      this.goToScene('C04');
+    }
+  }
+
+  public scheduleNextAfterC03(): void {
+    const epoch = this.sceneEpoch;
+    setTimeout(() => {
+      if (this.sceneEpoch !== epoch) return;
+      if (this.eatenCandiesInRun.length < 5) {
+        const remainingCount = 5 - this.eatenCandiesInRun.length;
+        this.setGhostSpeech(`（细细回味）胃里存下了一段故事。但长夜未央，托盘里还剩 ${remainingCount} 颗不同滋味的糖。`);
+        this.setGuide(`点击下方翻页按钮，翻向下一页继续品尝（还剩 ${remainingCount} 颗）。`, 'hint');
+        if (this.onActionControlsUpdated) this.onActionControlsUpdated();
+      } else {
+        this.setGhostSpeech('五颗糖都吃完了……南瓜的秋意、标点的留白、诗人的废诗、默片的克制，还有云朵的逃跑。谢谢你陪我读完这个夜晚。');
+        this.setGuide('夜色已完全在纸页上化开。点击翻向终章，收下回礼。', 'hint');
+        if (this.onActionControlsUpdated) this.onActionControlsUpdated();
+      }
+    }, 1300);
+  }
+
   public straightenPumpkinHatC03(): void {
     if (this.c03Finished) return;
     this.c03Finished = true;
@@ -905,15 +945,10 @@ export class SceneDirector {
     this.audio.playSfx('boop');
     this.persistence.unlockWrapper('03');
     this.persistence.save();
-    this.setGuide(CHAPTER_SCRIPTS.C03.pumpkin.line, 'narration');
+    this.setGuide(CHAPTER_SCRIPTS.C03.pumpkin.philosophy, 'narration');
     this.setGhostSpeech(CHAPTER_SCRIPTS.C03.pumpkin.line);
     if (this.onActionControlsUpdated) this.onActionControlsUpdated();
-    const epoch = this.sceneEpoch;
-    setTimeout(() => {
-      if (this.sceneEpoch === epoch) {
-        this.goToScene('C04');
-      }
-    }, 1200);
+    this.scheduleNextAfterC03();
   }
 
   public shakeMilkTeaC03(): void {
@@ -925,15 +960,10 @@ export class SceneDirector {
     this.persistence.unlockWrapper('04');
     this.persistence.save();
     const line = CHAPTER_SCRIPTS.C03.milktea.lines.join(' ');
-    this.setGuide(line, 'narration');
+    this.setGuide(CHAPTER_SCRIPTS.C03.milktea.philosophy, 'narration');
     this.setGhostSpeech(line);
     if (this.onActionControlsUpdated) this.onActionControlsUpdated();
-    const epoch = this.sceneEpoch;
-    setTimeout(() => {
-      if (this.sceneEpoch === epoch) {
-        this.goToScene('C04');
-      }
-    }, 1300);
+    this.scheduleNextAfterC03();
   }
 
   public choosePoetWordC03(word: '月亮' | '糖纸' | '失眠'): void {
@@ -951,14 +981,13 @@ export class SceneDirector {
     this.persistence.unlockWrapper('05');
     this.persistence.save();
     this.audio.playSfx('chime');
-    this.setGuide('纸页上沙沙写下了新的诗句。', 'narration');
+    this.setGuide(CHAPTER_SCRIPTS.C03.poet.philosophy, 'narration');
     this.setGhostSpeech(CHAPTER_SCRIPTS.C03.poet.line);
     if (this.onActionControlsUpdated) this.onActionControlsUpdated();
   }
 
   public finishPoetC03(): void {
-    this.audio.playSfx('pageFlip');
-    this.goToScene('C04');
+    this.advanceFromC03();
   }
 
   public hitMovieSlateC03(): void {
@@ -969,15 +998,10 @@ export class SceneDirector {
     this.ghost.setAction('tumble', 1.2);
     this.persistence.unlockWrapper('06');
     this.persistence.save();
-    this.setGuide(CHAPTER_SCRIPTS.C03.movie.line, 'narration');
+    this.setGuide(CHAPTER_SCRIPTS.C03.movie.philosophy, 'narration');
     this.setGhostSpeech(CHAPTER_SCRIPTS.C03.movie.line);
     if (this.onActionControlsUpdated) this.onActionControlsUpdated();
-    const epoch = this.sceneEpoch;
-    setTimeout(() => {
-      if (this.sceneEpoch === epoch) {
-        this.goToScene('C04');
-      }
-    }, 1400);
+    this.scheduleNextAfterC03();
   }
 
   public chooseSleepwalkerDreamC03(dreamId: 'door' | 'boat' | 'window'): void {
@@ -998,14 +1022,9 @@ export class SceneDirector {
       if (this.sceneEpoch !== epoch) return;
       this.ghost.targetFloatOffsetY = 0;
       this.ghost.setAction('idle');
-      // Crucial: "原来梦也要下班。" ONLY triggers here!
-      this.setGuide(CHAPTER_SCRIPTS.C03.sleepwalk.outroLine, 'narration');
+      this.setGuide(CHAPTER_SCRIPTS.C03.sleepwalk.philosophy, 'narration');
       this.setGhostSpeech(CHAPTER_SCRIPTS.C03.sleepwalk.outroLine);
-      setTimeout(() => {
-        if (this.sceneEpoch === epoch) {
-          this.goToScene('C04');
-        }
-      }, 1200);
+      this.scheduleNextAfterC03();
     }, 1300);
   }
 
@@ -1013,8 +1032,13 @@ export class SceneDirector {
     this.c04Flipped = !this.c04Flipped;
     this.ghost.isNoteFlipped = this.c04Flipped;
     this.audio.playSfx('pageFlip');
-    this.setGuide('便签背面写着属于今晚的一句话。', 'narration');
-    this.setGhostSpeech('背面写着一句话，你看看。');
+    if (this.c04Flipped) {
+      this.setGuide('信札背面写着写给今晚的一首短诗。', 'narration');
+      this.setGhostSpeech('背面写着写给今晚的一首短诗，你看看。');
+    } else {
+      this.setGuide('信札正面：' + CHAPTER_SCRIPTS.C04.noteFrontLines.join(' '), 'narration');
+      this.setGhostSpeech('翻回正面了。今夜宜喂鬼，也宜对自己好一点。');
+    }
     if (this.onActionControlsUpdated) this.onActionControlsUpdated();
   }
 

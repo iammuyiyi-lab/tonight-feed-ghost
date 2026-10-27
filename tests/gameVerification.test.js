@@ -448,6 +448,59 @@ assert.strictEqual(capturedGuideType, 'hint', '玩法指导必须正确分发到
 
 console.log('✓ 幽灵跟随气泡与旁白/提示彻底分流核验通过');
 
+// 20. 验证五颗糖连环品尝体验（未品尝过滤、各剧情浪漫哲理推进、全糖终章回礼）
+console.log('测试 20: 验证五颗糖连环品尝体验与文青哲理台词推进');
+director.startNewRun();
+assert.strictEqual(director.eatenCandiesInRun.length, 0, '新周目已吃糖列表必须为空');
+
+// 1. 喂南瓜糖
+director.goToScene('C02');
+director.feedCandyInC02('pumpkin');
+assert.deepStrictEqual(director.eatenCandiesInRun, ['pumpkin']);
+director.goToScene('C03');
+director.straightenPumpkinHatC03();
+director.advanceFromC03();
+assert.strictEqual(director.currentScene, 'C02', '未尝满 5 颗糖前必须返回 C02 继续挑选');
+
+// 2. 喂奶糖
+director.feedCandyInC02('milk');
+assert.strictEqual(director.eatenCandiesInRun.length, 2);
+director.goToScene('C03');
+director.shakeMilkTeaC03();
+director.advanceFromC03();
+assert.strictEqual(director.currentScene, 'C02');
+
+// 3. 喂星星糖
+director.feedCandyInC02('star');
+assert.strictEqual(director.eatenCandiesInRun.length, 3);
+director.goToScene('C03');
+director.choosePoetWordC03('月亮');
+director.advanceFromC03();
+assert.strictEqual(director.currentScene, 'C02');
+
+// 4. 喂黑糖
+director.feedCandyInC02('blackSugar');
+assert.strictEqual(director.eatenCandiesInRun.length, 4);
+director.goToScene('C03');
+director.hitMovieSlateC03();
+director.advanceFromC03();
+assert.strictEqual(director.currentScene, 'C02');
+
+// 5. 喂最后一颗云朵糖
+director.feedCandyInC02('cloud');
+assert.strictEqual(director.eatenCandiesInRun.length, 5, '五颗糖果必须全部记录品尝');
+director.goToScene('C03');
+director.chooseSleepwalkerDreamC03('window');
+director.advanceFromC03();
+assert.strictEqual(director.currentScene, 'C04', '五颗糖果全部尝毕后必须推进至终章 C04');
+
+// 验证终章信札翻转与哲理对白
+director.flipC04Note();
+assert.strictEqual(director.c04Flipped, true);
+assert.ok(director.guideText.includes('写给今晚的一首短诗'), '终章信札背面应为手写诗意总结');
+
+console.log('✓ 五颗糖连环品尝体验与浪漫哲思收束核验通过');
+
 console.log('\n========================================');
-console.log('🎉 19 项端到端业务、P0彻底删除接糖、跟随气泡与短转场体验回归测试全部通过！');
+console.log('🎉 20 项端到端业务、五颗糖连环选尝、浪漫诗意剧情回归测试全部通过！');
 console.log('========================================');

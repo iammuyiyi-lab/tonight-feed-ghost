@@ -467,11 +467,19 @@ class GameApp {
         this.director.tapC01();
         return;
       } else if (s === 'C03') {
-        if (this.ghost.form === 'pumpkin') {
-          this.director.straightenPumpkinHatC03();
-          return;
-        } else if (this.ghost.form === 'milktea') {
-          this.director.shakeMilkTeaC03();
+        if (!this.director.c03Finished) {
+          if (this.ghost.form === 'pumpkin') {
+            this.director.straightenPumpkinHatC03();
+            return;
+          } else if (this.ghost.form === 'milktea') {
+            this.director.shakeMilkTeaC03();
+            return;
+          } else if (this.ghost.form === 'movie') {
+            this.director.hitMovieSlateC03();
+            return;
+          }
+        } else {
+          this.director.advanceFromC03();
           return;
         }
       } else if (s === 'C04') {
@@ -571,11 +579,13 @@ class GameApp {
     if (scene === 'C01') {
       indicator = '第一页 · 遇见';
     } else if (scene === 'C02') {
-      indicator = '第二页 · 一颗糖';
+      const step = Math.min(5, this.director.eatenCandiesInRun.length + 1);
+      indicator = `第二页 · 选糖 (${step}/5) · 品尝夜色`;
     } else if (scene === 'C03') {
-      indicator = '第三页 · 小小后遗症';
+      const step = Math.min(5, this.director.eatenCandiesInRun.length);
+      indicator = `第三页 · 小小后遗症 (${step}/5)`;
     } else if (scene === 'C04') {
-      indicator = '第四页 · 回礼';
+      indicator = '终章 · 五味俱全的手写信';
     } else if (scene === 'S27') {
       indicator = '夜班 · 自由喂养';
     } else if (scene === 'S28') {
@@ -627,39 +637,60 @@ class GameApp {
       }
 
       case 'C02': {
+        const remainingCount = 5 - this.director.eatenCandiesInRun.length;
+        const currentStep = Math.min(5, this.director.eatenCandiesInRun.length + 1);
+
+        const banner = document.createElement('div');
+        banner.className = 'c02-status-banner';
+        banner.innerHTML = `
+          <div class="banner-title">第 ${currentStep} / 5 幕 · 品尝夜色</div>
+          <div class="banner-sub">请从余下 ${remainingCount} 颗纸包糖中挑选一颗喂给半糖</div>
+        `;
+        this.bottomActionRow.appendChild(banner);
+
         const tray = document.createElement('div');
         tray.className = 'candy-feeding-tray';
 
         const candyTypes: CandyType[] = ['pumpkin', 'milk', 'star', 'blackSugar', 'cloud'];
         candyTypes.forEach((type) => {
           const meta = CANDIES[type];
+          const isEaten = this.director.eatenCandiesInRun.includes(type);
+
           const candyEl = document.createElement('div');
-          candyEl.className = 'feed-candy-item';
+          candyEl.className = `feed-candy-item ${isEaten ? 'eaten' : 'available'}`;
           candyEl.setAttribute('data-candy', type);
 
           const icon = this.getCandySvgIcon(type);
           candyEl.innerHTML = `
             <div class="feed-candy-badge" style="background: ${meta.color}; border: 2px solid ${meta.accent};">
               ${icon}
+              ${isEaten ? '<span class="eaten-stamp">已收录</span>' : ''}
             </div>
             <div class="feed-candy-name">${meta.name}</div>
           `;
 
-          candyEl.onclick = (e) => {
-            e.stopPropagation();
-            if (this.director.currentPhase === 'interactive' && !this.flyingCandy) {
-              this.triggerCandyFlyFeed(type, candyEl, () => {
-                this.director.feedCandyInC02(type);
-                this.renderControlsForScene('C02');
-              });
-            }
-          };
+          if (!isEaten) {
+            candyEl.onclick = (e) => {
+              e.stopPropagation();
+              if (this.director.currentPhase === 'interactive' && !this.flyingCandy) {
+                this.triggerCandyFlyFeed(type, candyEl, () => {
+                  this.director.feedCandyInC02(type);
+                  this.renderControlsForScene('C02');
+                });
+              }
+            };
 
-          candyEl.onpointerdown = (e) => {
-            if (this.director.currentPhase === 'interactive' && !this.flyingCandy) {
-              this.startCandyDrag(type, e.clientX, e.clientY);
-            }
-          };
+            candyEl.onpointerdown = (e) => {
+              if (this.director.currentPhase === 'interactive' && !this.flyingCandy) {
+                this.startCandyDrag(type, e.clientX, e.clientY);
+              }
+            };
+          } else {
+            candyEl.onclick = (e) => {
+              e.stopPropagation();
+              this.director.showTransientBubble(`这颗${meta.name}已品尝过，请挑一颗尚未拆封的夜色～`);
+            };
+          }
 
           tray.appendChild(candyEl);
         });
@@ -674,21 +705,43 @@ class GameApp {
           if (!this.director.c03Finished) {
             const straightenBtn = document.createElement('button');
             straightenBtn.className = 'paper-btn accent';
-            straightenBtn.innerText = '扶正帽子';
+            straightenBtn.innerText = '扶正帽子 🍂';
             straightenBtn.onclick = () => {
               this.director.straightenPumpkinHatC03();
             };
             this.bottomActionRow.appendChild(straightenBtn);
+          } else {
+            const nextBtn = document.createElement('button');
+            nextBtn.className = 'paper-btn accent';
+            if (this.director.eatenCandiesInRun.length < 5) {
+              const rem = 5 - this.director.eatenCandiesInRun.length;
+              nextBtn.innerText = `翻向下一页 · 继续选糖 (还剩 ${rem} 颗) →`;
+            } else {
+              nextBtn.innerText = '翻向终章 · 领取手写回礼 📖';
+            }
+            nextBtn.onclick = () => this.director.advanceFromC03();
+            this.bottomActionRow.appendChild(nextBtn);
           }
         } else if (form === 'milktea') {
           if (!this.director.c03Finished) {
             const shakeBtn = document.createElement('button');
             shakeBtn.className = 'paper-btn accent';
-            shakeBtn.innerText = '轻轻摇一下';
+            shakeBtn.innerText = '轻轻摇一下 🧋';
             shakeBtn.onclick = () => {
               this.director.shakeMilkTeaC03();
             };
             this.bottomActionRow.appendChild(shakeBtn);
+          } else {
+            const nextBtn = document.createElement('button');
+            nextBtn.className = 'paper-btn accent';
+            if (this.director.eatenCandiesInRun.length < 5) {
+              const rem = 5 - this.director.eatenCandiesInRun.length;
+              nextBtn.innerText = `翻向下一页 · 继续选糖 (还剩 ${rem} 颗) →`;
+            } else {
+              nextBtn.innerText = '翻向终章 · 领取手写回礼 📖';
+            }
+            nextBtn.onclick = () => this.director.advanceFromC03();
+            this.bottomActionRow.appendChild(nextBtn);
           }
         } else if (form === 'poet') {
           if (!this.director.c03Finished) {
@@ -722,7 +775,12 @@ class GameApp {
             }
             const foldBtn = document.createElement('button');
             foldBtn.className = 'paper-btn accent';
-            foldBtn.innerText = '把诗折起来 →';
+            if (this.director.eatenCandiesInRun.length < 5) {
+              const rem = 5 - this.director.eatenCandiesInRun.length;
+              foldBtn.innerText = `折起诗页 · 继续选糖 (还剩 ${rem} 颗) →`;
+            } else {
+              foldBtn.innerText = '折起诗页 · 翻向终章 📖';
+            }
             foldBtn.onclick = () => {
               this.director.finishPoetC03();
             };
@@ -742,10 +800,21 @@ class GameApp {
             titleCard.className = 'movie-title-card-overlay';
             titleCard.innerHTML = `
               <div class="movie-film-banner">FILM TAKE #1</div>
-              <div class="movie-film-title">《一只幽灵差点拥有剧情》</div>
-              <div class="movie-film-sub">杀青特快 · 零预算出品</div>
+              <div class="movie-film-title">《在被遗忘的第25格里》</div>
+              <div class="movie-film-sub">没有排练 · 自然夜色出品</div>
             `;
             this.minigameOverlay.appendChild(titleCard);
+
+            const nextBtn = document.createElement('button');
+            nextBtn.className = 'paper-btn accent';
+            if (this.director.eatenCandiesInRun.length < 5) {
+              const rem = 5 - this.director.eatenCandiesInRun.length;
+              nextBtn.innerText = `翻向下一页 · 继续选糖 (还剩 ${rem} 颗) →`;
+            } else {
+              nextBtn.innerText = '翻向终章 · 领取手写回礼 📖';
+            }
+            nextBtn.onclick = () => this.director.advanceFromC03();
+            this.bottomActionRow.appendChild(nextBtn);
           }
         } else if (form === 'sleepwalk') {
           if (!this.director.c03Finished) {
@@ -788,36 +857,75 @@ class GameApp {
             const dreamAnim = document.createElement('div');
             dreamAnim.className = 'dream-visual-presentation';
             if (this.director.c03ChosenDream === 'door') {
-              dreamAnim.innerHTML = `<div class="dream-anim-symbol">🚪 ➡️ 🚪</div><div class="dream-anim-caption">门后还是门</div>`;
+              dreamAnim.innerHTML = `<div class="dream-anim-symbol">🚪 ➡️ 🚪</div><div class="dream-anim-caption">门后还有等待的灯</div>`;
             } else if (this.director.c03ChosenDream === 'boat') {
-              dreamAnim.innerHTML = `<div class="dream-anim-symbol spin-boat">⛵ 🌀</div><div class="dream-anim-caption">在墨水涟漪里打转</div>`;
+              dreamAnim.innerHTML = `<div class="dream-anim-symbol spin-boat">⛵ 🌀</div><div class="dream-anim-caption">在融化的夜色里打转</div>`;
             } else {
-              dreamAnim.innerHTML = `<div class="dream-anim-symbol drop-candy">🪟 🍬✨</div><div class="dream-anim-caption">天上下起不会过期的糖</div>`;
+              dreamAnim.innerHTML = `<div class="dream-anim-symbol drop-candy">🪟 🍬✨</div><div class="dream-anim-caption">夜风吹成呼吸的形状</div>`;
             }
             this.minigameOverlay.appendChild(dreamAnim);
+
+            const nextBtn = document.createElement('button');
+            nextBtn.className = 'paper-btn accent';
+            if (this.director.eatenCandiesInRun.length < 5) {
+              const rem = 5 - this.director.eatenCandiesInRun.length;
+              nextBtn.innerText = `翻向下一页 · 继续选糖 (还剩 ${rem} 颗) →`;
+            } else {
+              nextBtn.innerText = '翻向终章 · 领取手写回礼 📖';
+            }
+            nextBtn.onclick = () => this.director.advanceFromC03();
+            this.bottomActionRow.appendChild(nextBtn);
           }
         }
         break;
       }
 
       case 'C04': {
-        if (!this.director.c04Flipped) {
-          const flipBtn = document.createElement('button');
-          flipBtn.className = 'paper-btn secondary';
-          flipBtn.innerText = '翻看便签背面 →';
-          flipBtn.onclick = () => {
-            this.director.flipC04Note();
-          };
-          this.bottomActionRow.appendChild(flipBtn);
-        } else {
-          const certBtn = document.createElement('button');
-          certBtn.className = 'paper-btn accent';
-          certBtn.innerText = '把今晚夹进书里 🔖';
-          certBtn.onclick = () => {
-            this.showCertificateModal();
-          };
-          this.bottomActionRow.appendChild(certBtn);
-        }
+        const row = document.createElement('div');
+        row.style.display = 'flex';
+        row.style.flexDirection = 'column';
+        row.style.gap = '8px';
+        row.style.width = '100%';
+
+        const flipBtn = document.createElement('button');
+        flipBtn.className = 'paper-btn secondary';
+        flipBtn.innerText = this.director.c04Flipped ? '翻回信札正面 ↩' : '翻看手写信背面 📜';
+        flipBtn.onclick = () => {
+          this.director.flipC04Note();
+        };
+        row.appendChild(flipBtn);
+
+        const certBtn = document.createElement('button');
+        certBtn.className = 'paper-btn accent';
+        certBtn.innerText = '领取《深夜守夜人 · 终身荣誉证书》 🔖';
+        certBtn.onclick = () => {
+          this.showCertificateModal();
+        };
+        row.appendChild(certBtn);
+
+        const actionGroup = document.createElement('div');
+        actionGroup.style.display = 'flex';
+        actionGroup.style.gap = '8px';
+        actionGroup.style.justifyContent = 'center';
+
+        const freeModeBtn = document.createElement('button');
+        freeModeBtn.className = 'paper-btn';
+        freeModeBtn.innerText = '夜班自由喂养 👻';
+        freeModeBtn.onclick = () => {
+          this.director.goToScene('S27');
+        };
+        actionGroup.appendChild(freeModeBtn);
+
+        const restartBtn = document.createElement('button');
+        restartBtn.className = 'paper-btn';
+        restartBtn.innerText = '从头重温连环册 ↺';
+        restartBtn.onclick = () => {
+          this.director.startNewRun();
+        };
+        actionGroup.appendChild(restartBtn);
+
+        row.appendChild(actionGroup);
+        this.bottomActionRow.appendChild(row);
         break;
       }
 
@@ -1887,8 +1995,9 @@ class GameApp {
 
   private showCertificateModal(): void {
     const state = this.persistence.getState();
-    const endingTitle = '万圣节快乐持有证';
-    const subNote = state.chosenQuote || '有些夜晚并不特别。有人替它多留了一颗糖。';
+    const isFullRun = this.director.eatenCandiesInRun.length >= 5;
+    const endingTitle = isFullRun ? '深夜守夜人 · 荣誉证书' : '万圣节快乐持有证';
+    const subNote = isFullRun ? '以极大的耐心与温柔，陪一只不合群的鬼尝遍了五种夜色。' : (state.chosenQuote || '有些夜晚并不特别。有人替它多留了一颗糖。');
     const cardUrl = EndingCardRenderer.renderCardToDataUrl(state, endingTitle, subNote, state.chosenQuote);
     state.firstRunCompleted = true;
     this.persistence.save();

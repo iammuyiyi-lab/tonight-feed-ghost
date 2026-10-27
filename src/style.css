@@ -876,13 +876,32 @@ input:checked + .slider:before {
 }
 
 /* ================= V2 Mainline Experience Styles ================= */
+.c02-status-banner {
+  text-align: center;
+  margin-bottom: 6px;
+  width: 100%;
+}
+
+.c02-status-banner .banner-title {
+  font-size: 13px;
+  font-weight: bold;
+  color: #ED9A55;
+  letter-spacing: 0.5px;
+}
+
+.c02-status-banner .banner-sub {
+  font-size: 11px;
+  color: rgba(71, 57, 47, 0.75);
+  margin-top: 2px;
+}
+
 .candy-feeding-tray {
   display: flex;
   justify-content: center;
   align-items: center;
   gap: 8px;
   width: 100%;
-  padding: 6px 4px;
+  padding: 4px;
 }
 
 .feed-candy-item {
@@ -893,11 +912,35 @@ input:checked + .slider:before {
   touch-action: none;
   min-width: 52px;
   min-height: 44px;
-  transition: transform 0.15s ease;
+  transition: transform 0.15s ease, opacity 0.2s ease;
 }
 
-.feed-candy-item:active {
+.feed-candy-item.available:active {
   transform: scale(0.92);
+}
+
+.feed-candy-item.eaten {
+  opacity: 0.4;
+  filter: grayscale(0.7);
+  cursor: default;
+  transform: scale(0.92);
+}
+
+.feed-candy-item.eaten .feed-candy-badge {
+  border-style: dashed !important;
+  box-shadow: none;
+  position: relative;
+}
+
+.feed-candy-badge .eaten-stamp {
+  position: absolute;
+  font-size: 8px;
+  background: rgba(71, 57, 47, 0.88);
+  color: #F7E9D2;
+  padding: 1px 3px;
+  border-radius: 3px;
+  bottom: -4px;
+  white-space: nowrap;
 }
 
 .feed-candy-badge {
@@ -908,6 +951,7 @@ input:checked + .slider:before {
   align-items: center;
   justify-content: center;
   box-shadow: 0 2px 6px rgba(71, 57, 47, 0.22);
+  position: relative;
 }
 
 .feed-candy-name {
