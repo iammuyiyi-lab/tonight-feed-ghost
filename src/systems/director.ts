@@ -369,6 +369,10 @@ export class SceneDirector {
     }
   }
 
+  public ensureAudioForCurrentScene(): void {
+    this.updateAudioForScene(this.currentScene);
+  }
+
   private updateAudioForScene(scene: SceneId): void {
     if (scene === 'C01' || scene === 'P00' || scene === 'S00' || scene === 'S01' || scene === 'S02' || scene === 'S03' || scene === 'S04' || scene === 'S05') {
       this.audio.playTrack('cover');

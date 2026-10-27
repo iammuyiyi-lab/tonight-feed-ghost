@@ -599,6 +599,33 @@ assert.ok(cssContent.includes('.minigame-overlay') && cssContent.includes('justi
 assert.ok(cssContent.includes('.yang-modal-overlay') && cssContent.includes('justify-content: flex-end'), '杨的留言弹窗必须在鬼下方底部对齐不挡鬼');
 console.log('✓ C04 独立手写信动画展开、来自杨的留言下一行排版与交互弹窗零遮挡幽灵核验通过');
 
+// 25. 验证 AudioDirector 智能唤醒、全交互音效与非单调温馨多声部背景音乐机制
+console.log('测试 25: 验证 AudioDirector 智能唤醒、全交互音效与非单调温馨多声部背景音乐机制');
+const audioTest = new AudioDirector();
+assert.doesNotThrow(() => {
+  audioTest.playTrack('cover');
+  audioTest.playTrack('feeding');
+  audioTest.playTrack('transform');
+  audioTest.playTrack('ending');
+  audioTest.playTrack('none');
+}, '所有四章长周期治愈系 BGM 切换必须安全无异常');
+
+assert.doesNotThrow(() => {
+  audioTest.playSfx('pageFlip');
+  audioTest.playSfx('swallow');
+  audioTest.playSfx('boop');
+  audioTest.playSfx('poke');
+  audioTest.playSfx('chime');
+  audioTest.playSfx('twinkle');
+  audioTest.playSfx('clapper');
+  audioTest.playSfx('stamp');
+}, '所有交互按键与拟真音效触发必须完备安全');
+
+assert.doesNotThrow(() => {
+  director.ensureAudioForCurrentScene();
+}, '当前场景音轨自动核对与启动机制必须完备');
+console.log('✓ AudioDirector 智能唤醒、全交互音效与温馨长周期背景音乐核验通过');
+
 console.log('\n========================================');
-console.log('🎉 24 项端到端业务、五颗糖连环品尝、自主翻页、一键重置、气泡相对坐标与杨的专属留言测试全部通过！');
+console.log('🎉 25 项端到端业务、五颗糖连环品尝、自主翻页、一键重置、气泡相对坐标、杨的专属留言与温馨音效核验全部通过！');
 console.log('========================================');

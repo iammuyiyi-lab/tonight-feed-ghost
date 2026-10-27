@@ -108,6 +108,19 @@ class GameApp {
     // Apply reduced motion preference
     this.applyMotionPreference();
 
+    // Load and apply initial audio settings
+    const savedAudioState = this.persistence.getState();
+    this.audio.setSettings(savedAudioState.settings.bgmEnabled, savedAudioState.settings.sfxEnabled);
+
+    // Global audio unlock on first user gesture anywhere (using capture to bypass stopPropagation)
+    const unlockAudioOnGesture = async () => {
+      await this.audio.unlock();
+      this.director.ensureAudioForCurrentScene();
+    };
+    ['pointerdown', 'touchstart', 'mousedown', 'click', 'keydown'].forEach((evt) => {
+      window.addEventListener(evt, unlockAudioOnGesture, { capture: true, passive: true });
+    });
+
     this.bindDOMEvents();
     this.bindInputEvents();
 
@@ -279,14 +292,18 @@ class GameApp {
     this.bottomActionRow.addEventListener('click', (e) => e.stopPropagation());
 
     // Settings Modal
-    this.settingsBtn.addEventListener('click', () => {
+    this.settingsBtn.addEventListener('click', async () => {
+      await this.audio.unlock();
+      this.audio.playSfx('boop');
       this.openSettingsModal();
     });
 
     // Top Header Reset Button (One-click direct reset)
     if (this.topResetBtn) {
-      this.topResetBtn.addEventListener('click', (e) => {
+      this.topResetBtn.addEventListener('click', async (e) => {
         e.stopPropagation();
+        await this.audio.unlock();
+        this.audio.playSfx('boop');
         this.confirmAndResetProgress();
       });
     }
@@ -690,7 +707,8 @@ class GameApp {
           const tapBtn = document.createElement('button');
           tapBtn.className = 'paper-btn accent';
           tapBtn.innerText = '轻触半糖 / 招手 👋';
-          tapBtn.onclick = () => {
+          tapBtn.onclick = async () => {
+            await this.audio.unlock();
             this.director.tapC01();
             this.renderControlsForScene('C01');
           };
@@ -699,7 +717,8 @@ class GameApp {
           const nextBtn = document.createElement('button');
           nextBtn.className = 'paper-btn accent';
           nextBtn.innerText = '翻向第二页 · 挑选夜色 🍬 →';
-          nextBtn.onclick = () => {
+          nextBtn.onclick = async () => {
+            await this.audio.unlock();
             this.audio.playSfx('pageFlip');
             this.director.goToScene('C02');
           };
@@ -733,7 +752,8 @@ class GameApp {
           stepBtn.style.padding = '12px 16px';
           stepBtn.style.fontSize = '15px';
           stepBtn.innerText = currentStepData.buttonLabel;
-          stepBtn.onclick = () => {
+          stepBtn.onclick = async () => {
+            await this.audio.unlock();
             this.director.nextC02DialogueStep();
           };
           this.bottomActionRow.appendChild(stepBtn);
@@ -1005,8 +1025,9 @@ class GameApp {
               </div>
             </div>
           `;
-          letterContainer.onclick = (e) => {
+          letterContainer.onclick = async (e) => {
             e.stopPropagation();
+            await this.audio.unlock();
             this.director.flipC04Note();
           };
           this.minigameOverlay.appendChild(letterContainer);
@@ -1031,7 +1052,8 @@ class GameApp {
         const flipBtn = document.createElement('button');
         flipBtn.className = 'paper-btn secondary';
         flipBtn.innerText = this.director.c04Flipped ? '翻回信札正面 ↩' : '翻看手写信背面 📜';
-        flipBtn.onclick = () => {
+        flipBtn.onclick = async () => {
+          await this.audio.unlock();
           this.director.flipC04Note();
         };
         row.appendChild(flipBtn);
@@ -1039,7 +1061,8 @@ class GameApp {
         const yangBtn = document.createElement('button');
         yangBtn.className = 'paper-btn accent';
         yangBtn.innerText = '来自杨的留言 💌';
-        yangBtn.onclick = () => {
+        yangBtn.onclick = async () => {
+          await this.audio.unlock();
           this.showYangMessageModal();
         };
         row.appendChild(yangBtn);
@@ -2107,7 +2130,8 @@ class GameApp {
   }
 
   private showYangMessageModal(): void {
-    this.audio.playSfx('pageFlip');
+    this.audio.unlock();
+    this.audio.playSfx('chime');
     this.modalOverlay.style.display = 'flex';
     this.modalOverlay.className = 'modal-overlay yang-modal-overlay';
     this.modalOverlay.innerHTML = `
@@ -2126,6 +2150,7 @@ class GameApp {
     `;
 
     this.modalOverlay.querySelector('.yang-close-btn')?.addEventListener('click', () => {
+      this.audio.playSfx('twinkle');
       this.modalOverlay.style.display = 'none';
       this.modalOverlay.className = 'modal-overlay';
     });
