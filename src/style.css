@@ -1166,10 +1166,11 @@ input:checked + .slider:before {
   flex-direction: column;
   align-items: center;
   gap: 8px;
-  padding: 12px;
-  background: rgba(255, 253, 247, 0.9);
-  border: 2px dashed var(--color-ink-brown);
-  border-radius: 10px;
+  padding: 12px 18px;
+  background: rgba(255, 253, 247, 0.96);
+  border: 1.5px solid var(--color-ink-brown);
+  border-radius: 8px;
+  box-shadow: 2px 3px 0 rgba(71, 57, 47, 0.15);
   animation: fadeIn 0.4s ease;
 }
 

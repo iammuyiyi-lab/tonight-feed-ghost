@@ -353,7 +353,8 @@ assert.strictEqual(director.subtitleText, CHAPTER_SCRIPTS.C03.sleepwalk.prompt, 
 // 选择【纸船】梦境卡片
 director.chooseSleepwalkerDreamC03('boat');
 assert.strictEqual(director.c03ChosenDream, 'boat', '已选纸船梦境');
-assert.strictEqual(director.fullSubtitleText, '我梦见我坐着船，在墨水里打转。', '选梦后应先播放梦境演出台词');
+assert.strictEqual(director.fullSubtitleText, '不赶时间，也不急着靠岸，发呆就是今晚最好的航向。', '选梦后应先播放梦境演出台词');
+assert.strictEqual(director.ghostSpeech, '我梦见自己坐着一只折纸小船，在夜色的墨水里慢吞吞地漂着。', '选梦后半糖气泡播放梦境台词');
 assert.ok(persistence.getState().collectibles.includes('07'), '梦游关卡完成应收录糖纸 #07');
 console.log('✓ 梦游幽灵三张手绘梦境卡片与严谨台词时序验收通过');
 

@@ -1067,14 +1067,16 @@ export class SceneDirector {
     this.currentPhase = 'interactive';
     this.c03ChosenDream = dreamId;
     const card = CHAPTER_SCRIPTS.C03.sleepwalk.cards.find(c => c.id === dreamId);
-    const line = card ? card.line : '我梦见天上下起了不会过期的糖。';
+    const line = card ? card.line : '我梦见趴在纸糊的窗台边，把所有的失眠和烦恼，都轻轻关在窗外。';
+    const philosophy = card ? (card as any).philosophy : CHAPTER_SCRIPTS.C03.sleepwalk.philosophy;
     this.audio.playSfx('twinkle');
     this.persistence.unlockWrapper('07');
     this.persistence.save();
     this.ghost.targetFloatOffsetY = 0;
     this.ghost.setAction('idle');
-    this.setGuide(line, 'narration');
-    this.setGhostSpeech(`${line} ${CHAPTER_SCRIPTS.C03.sleepwalk.outroLine}`);
+    this.ghost.expression = 'sleepy';
+    this.setGuide(philosophy, 'narration');
+    this.setGhostSpeech(line);
     this.scheduleNextAfterC03();
   }
 

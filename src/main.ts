@@ -929,7 +929,7 @@ class GameApp {
               },
               {
                 id: 'window',
-                label: '窗户',
+                label: '窗台',
                 sketch: `<svg viewBox="0 0 60 60" class="dream-sketch-svg"><rect x="14" y="12" width="32" height="36" fill="none" stroke="#47392F" stroke-width="2.5"/><line x1="30" y1="12" x2="30" y2="48" stroke="#47392F" stroke-width="1.5"/><line x1="14" y1="30" x2="46" y2="30" stroke="#47392F" stroke-width="1.5"/><circle cx="22" cy="22" r="3" fill="#F4CA64"/></svg>`,
               },
             ];
@@ -952,11 +952,11 @@ class GameApp {
             const dreamAnim = document.createElement('div');
             dreamAnim.className = 'dream-visual-presentation';
             if (this.director.c03ChosenDream === 'door') {
-              dreamAnim.innerHTML = `<div class="dream-anim-symbol">🚪 ➡️ 🚪</div><div class="dream-anim-caption">门后还有等待的灯</div>`;
+              dreamAnim.innerHTML = `<div class="dream-anim-symbol">🚪 💡</div><div class="dream-anim-caption">门后总有一盏等你的灯</div>`;
             } else if (this.director.c03ChosenDream === 'boat') {
-              dreamAnim.innerHTML = `<div class="dream-anim-symbol spin-boat">⛵ 🌀</div><div class="dream-anim-caption">在融化的夜色里打转</div>`;
+              dreamAnim.innerHTML = `<div class="dream-anim-symbol spin-boat">⛵ 🌙</div><div class="dream-anim-caption">在深蓝墨色里慢慢漂流</div>`;
             } else {
-              dreamAnim.innerHTML = `<div class="dream-anim-symbol drop-candy">🪟 🍬✨</div><div class="dream-anim-caption">夜风吹成呼吸的形状</div>`;
+              dreamAnim.innerHTML = `<div class="dream-anim-symbol">🪟 🌙 ✨</div><div class="dream-anim-caption">把失眠与烦恼轻轻关在窗外</div>`;
             }
             this.minigameOverlay.appendChild(dreamAnim);
 
