@@ -1,4 +1,4 @@
-import { GhostAction, GhostExpression, GhostFormId, CatchBounds } from '../types';
+import { GhostAction, GhostExpression, GhostFormId, CatchBounds, CandyType } from '../types';
 import { THEME_COLORS } from '../config/constants';
 
 export class GhostActor {
@@ -35,6 +35,16 @@ export class GhostActor {
 
   public blushAlpha: number = 0;
   public tummyInflation: number = 0; // 0 to 0.35
+
+  // V2 Specialized Visual FX & Chapter 3 states
+  public activeCandyFX: CandyType | null = null;
+  public candyFXTimer: number = 0;
+  public ghostAlpha: number = 1.0;
+  public floatOffsetY: number = 0;
+  public targetFloatOffsetY: number = 0;
+  public hatTilt: number = 0;
+  public headTiltBack: number = 0;
+  public showQuestionPearls: boolean = false;
 
   // Internal time accumulators
   private animTime: number = 0;
@@ -95,6 +105,53 @@ export class GhostActor {
     this.isHoldingNote = false;
     this.tummyInflation = 0;
     this.blushAlpha = 0;
+    this.activeCandyFX = null;
+    this.candyFXTimer = 0;
+    this.ghostAlpha = 1.0;
+    this.floatOffsetY = 0;
+    this.targetFloatOffsetY = 0;
+    this.hatTilt = 0;
+    this.headTiltBack = 0;
+    this.showQuestionPearls = false;
+  }
+
+  public playCandyFeedback(candy: CandyType, duration: number = 2.5): void {
+    this.activeCandyFX = candy;
+    this.candyFXTimer = duration;
+
+    switch (candy) {
+      case 'pumpkin':
+        this.tummyInflation = 0.28;
+        this.targetScaleX = 1.15;
+        this.targetScaleY = 0.95;
+        this.targetLookY = -0.9;
+        this.targetLookX = 0;
+        this.expression = 'alert';
+        break;
+      case 'milk':
+        this.ghostAlpha = 0.72;
+        this.targetLookY = 0.85;
+        this.targetLookX = 0;
+        this.expression = 'soft';
+        break;
+      case 'star':
+        this.targetLookX = 0.5;
+        this.targetLookY = -0.4;
+        this.expression = 'smug';
+        break;
+      case 'blackSugar':
+        this.targetScaleX = 0.96;
+        this.targetScaleY = 1.04;
+        this.expression = 'complain';
+        break;
+      case 'cloud':
+        this.targetFloatOffsetY = -22;
+        this.expression = 'sleepy';
+        break;
+      default:
+        this.expression = 'joy';
+        break;
+    }
   }
 
   public setAction(action: GhostAction, duration: number = 0): void {
@@ -251,6 +308,28 @@ export class GhostActor {
     this.lookX += (this.targetLookX - this.lookX) * Math.min(1, 10 * dt);
     this.lookY += (this.targetLookY - this.lookY) * Math.min(1, 10 * dt);
     this.mouthOpen += (this.targetMouthOpen - this.mouthOpen) * Math.min(1, 12 * dt);
+    this.floatOffsetY += (this.targetFloatOffsetY - this.floatOffsetY) * Math.min(1, 6 * dt);
+
+    // Active Candy Feedback timer & animations
+    if (this.candyFXTimer > 0) {
+      this.candyFXTimer -= dt;
+      if (this.activeCandyFX === 'pumpkin') {
+        this.rotation = Math.sin(this.animTime * 12) * 0.08;
+      } else if (this.activeCandyFX === 'cloud') {
+        if (this.candyFXTimer < 1.0) {
+          this.expression = 'surprised';
+        }
+      }
+      if (this.candyFXTimer <= 0) {
+        this.activeCandyFX = null;
+        this.targetFloatOffsetY = 0;
+        this.ghostAlpha = 1.0;
+        this.tummyInflation = 0;
+        if (this.action === 'idle') {
+          this.expression = 'calm';
+        }
+      }
+    }
 
     // Subtle breathing cycle when idle
     if (this.action === 'idle') {
@@ -266,11 +345,12 @@ export class GhostActor {
 
   public render(ctx: CanvasRenderingContext2D, centerX: number, centerY: number, scaleMultiplier: number = 1.0): void {
     ctx.save();
-    ctx.translate(centerX, centerY);
-    ctx.rotate(this.rotation);
+    ctx.translate(centerX, centerY + this.floatOffsetY);
+    ctx.rotate(this.rotation + this.headTiltBack);
 
     const s = this.baseScale * scaleMultiplier;
     ctx.scale(this.scaleX * s, this.scaleY * s);
+    ctx.globalAlpha = this.ghostAlpha;
 
     // Draw Drop Shadow on Aged Paper
     this.renderShadow(ctx);
@@ -502,7 +582,7 @@ export class GhostActor {
       case 'pumpkin': {
         // Pumpkin shell helmet on head
         ctx.translate(0, -96);
-        ctx.rotate(-0.08);
+        ctx.rotate(this.hatTilt !== 0 ? this.hatTilt : -0.08);
 
         // Stem
         ctx.fillStyle = '#6E8A5E';
@@ -553,13 +633,24 @@ export class GhostActor {
         ctx.strokeRect(-8, -160, 16, 160);
         ctx.restore();
 
-        // Bobas at bottom
+        // Bobas at bottom or arranged as '?'
         ctx.fillStyle = '#47392F';
-        [-36, -18, 0, 18, 36].forEach((bx) => {
-          ctx.beginPath();
-          ctx.arc(bx, 20, 8, 0, Math.PI * 2);
-          ctx.fill();
-        });
+        if (this.showQuestionPearls) {
+          const qPoints = [
+            [-12, -26], [4, -32], [16, -20], [8, -8], [0, 4], [0, 20]
+          ];
+          qPoints.forEach(([bx, by]) => {
+            ctx.beginPath();
+            ctx.arc(bx, by, 7, 0, Math.PI * 2);
+            ctx.fill();
+          });
+        } else {
+          [-36, -18, 0, 18, 36].forEach((bx) => {
+            ctx.beginPath();
+            ctx.arc(bx, 20, 8, 0, Math.PI * 2);
+            ctx.fill();
+          });
+        }
         break;
       }
 
@@ -657,6 +748,98 @@ export class GhostActor {
         ctx.strokeStyle = THEME_COLORS.inkBrown;
         ctx.lineWidth = 2;
         ctx.stroke();
+        break;
+      }
+    }
+
+    if (this.activeCandyFX) {
+      this.renderCandyFeedbackProps(ctx);
+    }
+
+    ctx.restore();
+  }
+
+  private renderCandyFeedbackProps(ctx: CanvasRenderingContext2D): void {
+    ctx.save();
+    switch (this.activeCandyFX) {
+      case 'pumpkin': {
+        // Little green pumpkin leaf sprouting briefly on head
+        ctx.translate(0, -104);
+        ctx.fillStyle = '#6E8A5E';
+        ctx.beginPath();
+        ctx.ellipse(4, -8, 12, 6, 0.4, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = THEME_COLORS.inkBrown;
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.quadraticCurveTo(0, -6, 4, -8);
+        ctx.stroke();
+        break;
+      }
+      case 'milk': {
+        // Two boba pearls inside tummy
+        ctx.fillStyle = '#47392F';
+        ctx.beginPath();
+        ctx.arc(-8, 30, 6, 0, Math.PI * 2);
+        ctx.fill();
+        const sinkY = 32 + (2.5 - Math.max(0, this.candyFXTimer)) * 6;
+        ctx.beginPath();
+        ctx.arc(10, sinkY, 6, 0, Math.PI * 2);
+        ctx.fill();
+        break;
+      }
+      case 'star': {
+        // Ink droplet / glow dot on head
+        ctx.fillStyle = '#222222';
+        ctx.beginPath();
+        ctx.arc(0, -104, 5, 0, Math.PI * 2);
+        ctx.fill();
+        // Floating blank paper sheet beside ghost
+        ctx.translate(55, -15);
+        ctx.rotate(0.15);
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillRect(-18, -25, 36, 50);
+        ctx.strokeStyle = THEME_COLORS.inkBrown;
+        ctx.lineWidth = 1.5;
+        ctx.strokeRect(-18, -25, 36, 50);
+        break;
+      }
+      case 'blackSugar': {
+        // Mini clapperboard in hand
+        ctx.translate(40, -10);
+        ctx.rotate(0.2);
+        ctx.fillStyle = '#222222';
+        ctx.fillRect(-18, -14, 36, 26);
+        ctx.strokeStyle = THEME_COLORS.inkBrown;
+        ctx.lineWidth = 1.5;
+        ctx.strokeRect(-18, -14, 36, 26);
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillRect(-14, -14, 6, 6);
+        ctx.fillRect(4, -14, 6, 6);
+        break;
+      }
+      case 'cloud': {
+        // Nightcap on head
+        ctx.translate(0, -96);
+        ctx.beginPath();
+        ctx.moveTo(-35, 10);
+        ctx.quadraticCurveTo(-50, -45, -75, -25);
+        ctx.quadraticCurveTo(-20, -35, 35, 10);
+        ctx.closePath();
+        ctx.fillStyle = THEME_COLORS.mistPurple;
+        ctx.fill();
+        ctx.strokeStyle = THEME_COLORS.inkBrown;
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        ctx.restore();
+        ctx.save();
+        ctx.translate(-50, -40);
+        ctx.fillStyle = '#F4CA64';
+        ctx.beginPath();
+        ctx.arc(0, 0, 7, 0, Math.PI * 2);
+        ctx.fill();
         break;
       }
     }

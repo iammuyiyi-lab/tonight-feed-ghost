@@ -6,10 +6,10 @@ const DB_VERSION = 1;
 const STORE_NAME = 'save_state';
 
 export const INITIAL_SAVE_STATE: SaveState = {
-  version: 1,
+  version: 3,
   chapter: 0,
-  scene: 'S00',
-  lastSafeCheckpoint: 'S01',
+  scene: 'C01',
+  lastSafeCheckpoint: 'C01',
   firstRunCompleted: false,
   totalCandy: 0,
   feedCounts: {
@@ -182,11 +182,20 @@ export class PersistenceSystem {
       return { ...INITIAL_SAVE_STATE };
     }
 
+    const mapLegacyScene = (s: any): SceneId => {
+      if (['C01', 'C02', 'C03', 'C04', 'S27', 'S28', 'S29', 'S30'].includes(s)) return s as SceneId;
+      if (['P00', 'S00', 'S01', 'S02', 'S03'].includes(s)) return 'C01';
+      if (['P01', 'S04', 'S05', 'S06', 'S07', 'S08'].includes(s)) return 'C02';
+      if (['P02', 'P03', 'S09', 'S10', 'S11', 'S12', 'S13', 'S14', 'S15_A', 'S16_B', 'S17_C', 'S18_D', 'S19_E', 'S20'].includes(s)) return 'C03';
+      if (['P04', 'P05', 'S21', 'S22', 'S23', 'S24', 'S25', 'S26'].includes(s)) return 'C04';
+      return 'C01';
+    };
+
     return {
-      version: 1,
+      version: 3,
       chapter: typeof data.chapter === 'number' ? data.chapter : 0,
-      scene: typeof data.scene === 'string' ? data.scene : 'S00',
-      lastSafeCheckpoint: typeof data.lastSafeCheckpoint === 'string' ? data.lastSafeCheckpoint : 'S01',
+      scene: mapLegacyScene(data.scene),
+      lastSafeCheckpoint: mapLegacyScene(data.lastSafeCheckpoint),
       firstRunCompleted: !!data.firstRunCompleted,
       totalCandy: typeof data.totalCandy === 'number' ? data.totalCandy : 0,
       feedCounts: {
@@ -230,6 +239,11 @@ export class PersistenceSystem {
         reduceMotion: data.settings?.reduceMotion ?? false,
       },
     };
+  }
+
+  public savePoem(poem: PoemRecord): void {
+    this.state.savedPoems.push(poem);
+    this.save();
   }
 
   public unlockWrapper(wrapperId: string): boolean {

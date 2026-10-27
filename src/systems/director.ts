@@ -3,9 +3,10 @@ import {
   GhostFormId,
   CandyType,
   RouteScores,
+  ScenePhase,
 } from '../types';
 import { THEME_COLORS, CANDIES, FORMS_META } from '../config/constants';
-import { SCENE_SCRIPTS, V2_SCRIPTS, CANDY_REACTIONS, POKE_DIALOGUES, TEASING_DIALOGUES, IDLE_DIALOGUES } from '../config/dialogues';
+import { SCENE_SCRIPTS, V2_SCRIPTS, CANDY_REACTIONS, POKE_DIALOGUES, TEASING_DIALOGUES, IDLE_DIALOGUES, CANDY_RESPONSES, CHAPTER_SCRIPTS } from '../config/dialogues';
 import { evaluateEndingTitle, CANDY_WRAPPERS } from '../config/collectibles';
 import { PersistenceSystem } from './persistence';
 import { AudioDirector } from './audio';
@@ -77,6 +78,23 @@ export class SceneDirector {
   public onTransientBubbleUpdated: ((text: string | null) => void) | null = null;
 
   // V2 Streamlined Storyline State
+  public currentPhase: ScenePhase = 'enter';
+  public lastFeedTime: number = 0;
+  public repeatFeedIndices: Record<CandyType, number> = {
+    pumpkin: 0,
+    milk: 0,
+    star: 0,
+    blackSugar: 0,
+    cloud: 0,
+    mint: 0,
+    heart: 0,
+    moon: 0,
+  };
+  public c01SignTapped: boolean = false;
+  public c02SelectedCandy: CandyType | null = null;
+  public c03Finished: boolean = false;
+  public c03ChosenDream: string | null = null;
+  public c04Flipped: boolean = false;
   public p01Fed: boolean = false;
   public p01IdleTimer: number = 0;
   public p04SelectedQuote: string = '有些夜晚并不特别。有人替它多留了一颗糖。';
@@ -252,6 +270,11 @@ export class SceneDirector {
     this.p01Fed = false;
     this.p01IdleTimer = 0;
     this.p04SelectedQuote = '有些夜晚并不特别。有人替它多留了一颗糖。';
+    this.c01SignTapped = false;
+    this.c02SelectedCandy = null;
+    this.c03Finished = false;
+    this.c03ChosenDream = null;
+    this.c04Flipped = false;
 
     this.candyRain.resetEntireRainGame();
     this.pumpkinGame.reset();
@@ -261,7 +284,7 @@ export class SceneDirector {
     this.sleepwalkerGame.reset();
 
     this.persistence.resetForNewRun();
-    this.goToScene('P00');
+    this.goToScene('C01');
   }
 
   public goToScene(scene: SceneId): void {
@@ -285,7 +308,7 @@ export class SceneDirector {
     this.updateAudioForScene(scene);
 
     // Save checkpoint for major chapters
-    if (['P00', 'P01', 'P02', 'P03', 'P04', 'P05', 'S01', 'S06', 'S09', 'S14', 'S21', 'S26', 'S27'].includes(scene)) {
+    if (['C01', 'C02', 'C03', 'C04', 'P00', 'P01', 'P02', 'P03', 'P04', 'P05', 'S01', 'S06', 'S09', 'S14', 'S21', 'S26', 'S27'].includes(scene)) {
       state.lastSafeCheckpoint = scene;
       this.persistence.save();
     }
@@ -299,13 +322,13 @@ export class SceneDirector {
   }
 
   private updateAudioForScene(scene: SceneId): void {
-    if (scene === 'P00' || scene === 'S00' || scene === 'S01' || scene === 'S02' || scene === 'S03' || scene === 'S04' || scene === 'S05') {
+    if (scene === 'C01' || scene === 'P00' || scene === 'S00' || scene === 'S01' || scene === 'S02' || scene === 'S03' || scene === 'S04' || scene === 'S05') {
       this.audio.playTrack('cover');
-    } else if (scene === 'P01' || scene === 'P04' || scene === 'S06' || scene === 'S07' || scene === 'S08') {
+    } else if (scene === 'C02' || scene === 'P01' || scene === 'P04' || scene === 'S06' || scene === 'S07' || scene === 'S08') {
       this.audio.playTrack('feeding');
     } else if (scene === 'P02' || scene === 'S09' || scene === 'S10' || scene === 'S11' || scene === 'S12' || scene === 'S13') {
       this.audio.playTrack('rain');
-    } else if (scene === 'P03' || scene.startsWith('S15') || scene.startsWith('S16') || scene.startsWith('S17') || scene.startsWith('S18') || scene.startsWith('S19') || scene === 'S14' || scene === 'S20') {
+    } else if (scene === 'C03' || scene === 'P03' || scene.startsWith('S15') || scene.startsWith('S16') || scene.startsWith('S17') || scene.startsWith('S18') || scene.startsWith('S19') || scene === 'S14' || scene === 'S20') {
       this.audio.playTrack('transform');
     } else {
       this.audio.playTrack('ending');
@@ -317,6 +340,72 @@ export class SceneDirector {
     const state = this.persistence.getState();
 
     switch (scene) {
+      case 'C01': {
+        this.ghost.setAction('bounce');
+        this.ghost.isHoldingNote = true;
+        this.ghost.noteFrontText = CHAPTER_SCRIPTS.C01.signText;
+        this.ghost.isNoteFlipped = false;
+        this.c01SignTapped = false;
+        this.currentPhase = 'dialogue';
+        this.showDialogueQueue(CHAPTER_SCRIPTS.C01.introLines, () => {
+          if (this.sceneEpoch === currentEpoch) {
+            this.currentPhase = 'interactive';
+            this.setSubtitle(CHAPTER_SCRIPTS.C01.interactHint);
+            if (this.onActionControlsUpdated) this.onActionControlsUpdated();
+          }
+        });
+        break;
+      }
+
+      case 'C02': {
+        this.ghost.setAction('idle');
+        this.c02SelectedCandy = null;
+        this.currentPhase = 'interactive';
+        this.setSubtitle(`${CHAPTER_SCRIPTS.C02.topNote} ${CHAPTER_SCRIPTS.C02.subNote}`);
+        break;
+      }
+
+      case 'C03': {
+        this.currentPhase = 'interactive';
+        this.c03Finished = false;
+        this.c03ChosenDream = null;
+        const form = state.mainFormThisRun || 'pumpkin';
+        this.ghost.form = form;
+        if (form === 'pumpkin') {
+          this.ghost.hatTilt = -0.38;
+          this.ghost.headTiltBack = 0;
+          this.setSubtitle(CHAPTER_SCRIPTS.C03.pumpkin.prompt);
+        } else if (form === 'milktea') {
+          this.ghost.showQuestionPearls = false;
+          this.setSubtitle(CHAPTER_SCRIPTS.C03.milktea.prompt);
+        } else if (form === 'poet') {
+          this.poetGame.reset();
+          this.setSubtitle(CHAPTER_SCRIPTS.C03.poet.prompt);
+        } else if (form === 'movie') {
+          this.movieGame.reset();
+          this.setSubtitle(CHAPTER_SCRIPTS.C03.movie.prompt);
+        } else if (form === 'sleepwalk') {
+          this.sleepwalkerGame.reset();
+          this.ghost.targetFloatOffsetY = -20;
+          this.setSubtitle(CHAPTER_SCRIPTS.C03.sleepwalk.prompt);
+        }
+        break;
+      }
+
+      case 'C04': {
+        this.ghost.form = 'default';
+        this.ghost.setAction('idle');
+        this.ghost.isHoldingNote = true;
+        this.ghost.noteFrontText = CHAPTER_SCRIPTS.C04.noteFrontLines.join(' ');
+        const souvenir = state.chosenQuote || CANDY_RESPONSES[state.mainFormThisRun === 'pumpkin' ? 'pumpkin' : state.mainFormThisRun === 'milktea' ? 'milk' : state.mainFormThisRun === 'movie' ? 'blackSugar' : state.mainFormThisRun === 'sleepwalk' ? 'cloud' : 'star'].souvenirQuote;
+        this.ghost.noteBackText = souvenir;
+        this.ghost.isNoteFlipped = false;
+        this.c04Flipped = false;
+        this.currentPhase = 'interactive';
+        this.setSubtitle('它把一张不太正式的回礼塞给了你。');
+        break;
+      }
+
       case 'P00':
         this.ghost.setAction('idle');
         this.setSubtitle(V2_SCRIPTS.P00.marginal);
@@ -692,8 +781,194 @@ export class SceneDirector {
     }
   }
 
-  // --- Chapter 1 Feeding Logic (S06 / S07) ---
+  // --- Chapter 1 & V2 Feeding Logic ---
+  public feedCandyInC02(type: CandyType): { success: boolean; comment: string } {
+    if (this.currentPhase !== 'interactive') {
+      return { success: false, comment: '' };
+    }
+    this.currentPhase = 'resolving';
+    this.c02SelectedCandy = type;
+    const state = this.persistence.getState();
+    state.totalCandy++;
+    state.feedCounts[type] = (state.feedCounts[type] || 0) + 1;
+    this.chapter1FlavorsTried.add(type);
+
+    const candyResp = CANDY_RESPONSES[type] || CANDY_RESPONSES.pumpkin;
+    state.mainFormThisRun = candyResp.formId;
+    if (!state.playedFormsThisRun.includes(candyResp.formId)) {
+      state.playedFormsThisRun.push(candyResp.formId);
+    }
+    this.persistence.unlockForm(candyResp.formId);
+    state.chosenQuote = candyResp.souvenirQuote;
+    this.persistence.save();
+
+    // Trigger visual reaction
+    this.ghost.playCandyFeedback(type, 3.2);
+    const sfxName = (candyResp.soundId as any) || 'swallow';
+    this.audio.playSfx(sfxName);
+
+    // First dialogue
+    const comment = candyResp.firstDialogue[0];
+    const epoch = this.sceneEpoch;
+    this.showDialogueQueue(candyResp.firstDialogue, () => {
+      if (this.sceneEpoch !== epoch) return;
+      // 2 seconds pause
+      setTimeout(() => {
+        if (this.sceneEpoch !== epoch) return;
+        this.ghost.targetLookY = 0.85;
+        this.showDialogueQueue(CHAPTER_SCRIPTS.C02.abnormality, () => {
+          if (this.sceneEpoch !== epoch) return;
+          setTimeout(() => {
+            if (this.sceneEpoch === epoch) {
+              this.goToScene('C03');
+            }
+          }, 1200);
+        });
+      }, 2000);
+    });
+
+    if (this.onActionControlsUpdated) {
+      this.onActionControlsUpdated();
+    }
+    return { success: true, comment };
+  }
+
+  public tapC01(): void {
+    if (this.c01SignTapped) return;
+    this.c01SignTapped = true;
+    this.currentPhase = 'resolving';
+    this.ghost.setAction('bounce', 1.2);
+    this.ghost.expression = 'joy';
+    this.audio.playSfx('boop');
+    this.typewrite(CHAPTER_SCRIPTS.C01.tapResponse);
+    if (this.onActionControlsUpdated) this.onActionControlsUpdated();
+    const epoch = this.sceneEpoch;
+    setTimeout(() => {
+      if (this.sceneEpoch === epoch) {
+        this.goToScene('C02');
+      }
+    }, 1800);
+  }
+
+  public straightenPumpkinHatC03(): void {
+    if (this.c03Finished) return;
+    this.c03Finished = true;
+    this.currentPhase = 'resolving';
+    this.ghost.hatTilt = 0;
+    this.ghost.headTiltBack = -0.15;
+    this.audio.playSfx('boop');
+    this.persistence.unlockWrapper('03');
+    this.persistence.save();
+    this.typewrite(CHAPTER_SCRIPTS.C03.pumpkin.line);
+    if (this.onActionControlsUpdated) this.onActionControlsUpdated();
+    const epoch = this.sceneEpoch;
+    setTimeout(() => {
+      if (this.sceneEpoch === epoch) {
+        this.goToScene('C04');
+      }
+    }, 2500);
+  }
+
+  public shakeMilkTeaC03(): void {
+    if (this.c03Finished) return;
+    this.c03Finished = true;
+    this.currentPhase = 'resolving';
+    this.ghost.showQuestionPearls = true;
+    this.audio.playSfx('boop');
+    this.persistence.unlockWrapper('04');
+    this.persistence.save();
+    if (this.onActionControlsUpdated) this.onActionControlsUpdated();
+    const epoch = this.sceneEpoch;
+    this.showDialogueQueue(CHAPTER_SCRIPTS.C03.milktea.lines, () => {
+      if (this.sceneEpoch === epoch) {
+        setTimeout(() => {
+          if (this.sceneEpoch === epoch) this.goToScene('C04');
+        }, 1200);
+      }
+    });
+  }
+
+  public choosePoetWordC03(word: '月亮' | '糖纸' | '失眠'): void {
+    if (this.c03Finished) return;
+    this.c03Finished = true;
+    this.currentPhase = 'resolving';
+    const poemData = CHAPTER_SCRIPTS.C03.poet.poems[word];
+    this.poetGame.generatedPoem = {
+      title: poemData.title,
+      lines: [...poemData.lines],
+      materials: [word, '', ''],
+      timestamp: Date.now(),
+    };
+    this.persistence.savePoem(this.poetGame.generatedPoem);
+    this.persistence.unlockWrapper('05');
+    this.persistence.save();
+    this.audio.playSfx('chime');
+    this.typewrite(CHAPTER_SCRIPTS.C03.poet.line);
+    if (this.onActionControlsUpdated) this.onActionControlsUpdated();
+  }
+
+  public finishPoetC03(): void {
+    this.audio.playSfx('pageFlip');
+    this.goToScene('C04');
+  }
+
+  public hitMovieSlateC03(): void {
+    if (this.c03Finished) return;
+    this.c03Finished = true;
+    this.currentPhase = 'resolving';
+    this.audio.playSfx('clapper');
+    this.ghost.setAction('tumble', 1.8);
+    this.persistence.unlockWrapper('06');
+    this.persistence.save();
+    this.typewrite(CHAPTER_SCRIPTS.C03.movie.line);
+    if (this.onActionControlsUpdated) this.onActionControlsUpdated();
+    const epoch = this.sceneEpoch;
+    setTimeout(() => {
+      if (this.sceneEpoch === epoch) {
+        this.goToScene('C04');
+      }
+    }, 2800);
+  }
+
+  public chooseSleepwalkerDreamC03(dreamId: 'door' | 'boat' | 'window'): void {
+    if (this.c03Finished) return;
+    this.c03Finished = true;
+    this.currentPhase = 'resolving';
+    this.c03ChosenDream = dreamId;
+    const card = CHAPTER_SCRIPTS.C03.sleepwalk.cards.find(c => c.id === dreamId);
+    const line = card ? card.line : '我梦见天上下起了不会过期的糖。';
+    this.audio.playSfx('twinkle');
+    this.persistence.unlockWrapper('07');
+    this.persistence.save();
+    this.typewrite(line);
+    if (this.onActionControlsUpdated) this.onActionControlsUpdated();
+    const epoch = this.sceneEpoch;
+    setTimeout(() => {
+      if (this.sceneEpoch !== epoch) return;
+      this.ghost.targetFloatOffsetY = 0;
+      this.ghost.setAction('idle');
+      // Crucial: "原来梦也要下班。" ONLY triggers here!
+      this.typewrite(CHAPTER_SCRIPTS.C03.sleepwalk.outroLine);
+      setTimeout(() => {
+        if (this.sceneEpoch === epoch) {
+          this.goToScene('C04');
+        }
+      }, 2200);
+    }, 2500);
+  }
+
+  public flipC04Note(): void {
+    this.c04Flipped = !this.c04Flipped;
+    this.ghost.isNoteFlipped = this.c04Flipped;
+    this.audio.playSfx('pageFlip');
+    if (this.onActionControlsUpdated) this.onActionControlsUpdated();
+  }
+
   public feedCandy(type: CandyType, isHungryFeedWithoutTeasing: boolean = false): { success: boolean; comment: string } {
+    if (this.currentScene === 'C02') {
+      return this.feedCandyInC02(type);
+    }
+
     const state = this.persistence.getState();
     state.totalCandy++;
     state.feedCounts[type] = (state.feedCounts[type] || 0) + 1;
@@ -707,18 +982,24 @@ export class SceneDirector {
 
     // Apply route points
     const meta = CANDIES[type];
-    state.routeScore[meta.primaryRoute] += meta.points;
-    if (type === 'blackSugar') {
-      state.routeScore.poet += 1;
+    if (meta) {
+      state.routeScore[meta.primaryRoute] += meta.points;
+      if (type === 'blackSugar') {
+        state.routeScore.poet += 1;
+      }
     }
 
     // Ghost visual & audio
-    this.ghost.setAction('eat', 0.6);
-    this.audio.playSfx('swallow');
+    this.ghost.playCandyFeedback(type, 2.0);
+    const candyResp = CANDY_RESPONSES[type];
+    const sfx = (candyResp?.soundId as any) || 'swallow';
+    this.audio.playSfx(sfx);
 
-    // Dialogue feedback from S07
+    // Dialogue feedback with cycle and rapid-feed retort
     let comment = '';
-    const reaction = CANDY_REACTIONS[type];
+    const now = Date.now();
+    const isRapid = (now - this.lastFeedTime < 2500) && (this.lastFedCandy === type);
+    this.lastFeedTime = now;
 
     if (this.lastFedCandy === type) {
       this.consecutiveSameFeed++;
@@ -727,15 +1008,35 @@ export class SceneDirector {
       this.lastFedCandy = type;
     }
 
-    if (this.consecutiveSameFeed === 4) {
+    if (isRapid && candyResp) {
+      comment = candyResp.rapidDialogue;
+      this.ghost.setAction('angry', 1.5);
+      this.ghost.expression = 'complain';
+      if (this.consecutiveSameFeed >= 4) {
+        this.persistence.discoverEasterEgg('EGG04');
+      }
+    } else if (candyResp) {
+      if (state.feedCounts[type] === 1) {
+        comment = candyResp.firstDialogue[0];
+      } else if (state.feedCounts[type] === 2) {
+        this.repeatFeedIndices[type] = 1;
+        comment = candyResp.repeatDialogues[0][0];
+      } else {
+        const list = candyResp.repeatDialogues;
+        const idx = (this.repeatFeedIndices[type]++) % list.length;
+        comment = list[idx][0];
+      }
+      if (this.consecutiveSameFeed >= 4) {
+        this.persistence.discoverEasterEgg('EGG04');
+      }
+    } else if (this.consecutiveSameFeed === 4) {
       comment = SCENE_SCRIPTS.S06.consecutiveSame4;
       this.persistence.discoverEasterEgg('EGG04');
     } else if (this.consecutiveSameFeed >= 5) {
       comment = SCENE_SCRIPTS.S06.consecutiveSame5;
-    } else if (state.feedCounts[type] === 1) {
-      comment = reaction.first;
     } else {
-      comment = reaction.repeat;
+      const reaction = CANDY_REACTIONS[type];
+      comment = state.feedCounts[type] === 1 ? reaction.first : reaction.repeat;
     }
 
     this.typewrite(comment);

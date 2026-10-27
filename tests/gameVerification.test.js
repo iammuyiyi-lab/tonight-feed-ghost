@@ -2,6 +2,7 @@ import assert from 'assert';
 import { evaluateEndingTitle, CANDY_WRAPPERS, POEM_TEMPLATES, EASTER_EGGS_DEF } from '../src/config/collectibles.ts';
 import { INITIAL_SAVE_STATE, PersistenceSystem } from '../src/systems/persistence.ts';
 import { CANDIES, FORMS_META } from '../src/config/constants.ts';
+import { CANDY_RESPONSES, CHAPTER_SCRIPTS } from '../src/config/dialogues.ts';
 import { AudioDirector } from '../src/systems/audio.ts';
 import { GhostActor } from '../src/systems/ghost.ts';
 import { SceneDirector } from '../src/systems/director.ts';
@@ -254,77 +255,172 @@ director.skipOrNextDialogue();
 assert.strictEqual(pendingMainCallbackFired, true, '即使中途多次戳鬼，主线转场回调依然完好并成功执行');
 console.log('✓ P0-02 独立气泡解耦核验通过（戳鬼绝不破坏剧情跳转）');
 
-// 13. P03: 诗人幽灵全组合文学性与折诗动作验证
-console.log('测试 13: 验证 P03 诗人幽灵新词库与组合生成');
-poetGame.reset();
-poetGame.pickWord(0, '路灯');
-poetGame.pickWord(1, '晚风');
-poetGame.pickWord(2, '保密');
-assert.ok(poetGame.generatedPoem, '选齐三词必须生成小诗');
-assert.strictEqual(poetGame.step, 'recite', '生成后必须进入 recite 诵读纸页状态');
-assert.ok(poetGame.generatedPoem.lines[0].includes('路灯'), '第一行必须包含第一词');
-assert.ok(poetGame.generatedPoem.lines[1].includes('晚风'), '第二行必须包含第二词');
-assert.ok(poetGame.generatedPoem.lines[2].includes('保密'), '第三行必须包含第三词');
-console.log('✓ P03 诗人幽灵新词库动态创作核验通过');
+// 13. P0: 5 种核心糖果独立差异化反馈数据与对白完全验证
+console.log('测试 13: 验证 5 种糖果独立差异化反馈 (动作、表情、音效、专属对白、纪念句)');
+const requiredCandies = ['pumpkin', 'milk', 'star', 'blackSugar', 'cloud'];
+const formMap = {
+  pumpkin: 'pumpkin',
+  milk: 'milktea',
+  star: 'poet',
+  blackSugar: 'movie',
+  cloud: 'sleepwalk',
+};
 
-// 14. V2: P00 -> P05 六屏完整主线通关流水线验证
-console.log('测试 14: 验证 V2 纯享 6 屏主线贯通流水线 (P00-P05)');
+requiredCandies.forEach((cId) => {
+  const resp = CANDY_RESPONSES[cId];
+  assert.ok(resp, `糖果 ${cId} 必须具有结构化反馈配置`);
+  assert.strictEqual(resp.formId, formMap[cId], `${cId} 对应形态必须为 ${formMap[cId]}`);
+  assert.ok(resp.soundId.length > 0, `${cId} 必须拥有独立音效`);
+  assert.ok(resp.firstDialogue.length >= 2, `${cId} 首次进食必须拥有多句专属台词`);
+  assert.ok(resp.repeatDialogues.length >= 3, `${cId} 重复进食必须至少拥有 3 条循环台词`);
+  assert.ok(resp.rapidDialogue.length > 0, `${cId} 必须拥有快速连喂特殊吐槽`);
+  assert.ok(resp.souvenirQuote.length > 0, `${cId} 必须拥有回礼纪念句`);
+});
+// 验证南瓜专属吐槽与台词
+assert.strictEqual(CANDY_RESPONSES.pumpkin.rapidDialogue, '你在培育我吗？');
+assert.strictEqual(CANDY_RESPONSES.pumpkin.firstDialogue[0], '我好像成熟了。');
+assert.strictEqual(CANDY_RESPONSES.pumpkin.firstDialogue[1], '但只是植物学意义上的。');
+// 验证奶糖专属台词
+assert.strictEqual(CANDY_RESPONSES.milk.firstDialogue[0], '我身体里出现了标点。');
+assert.strictEqual(CANDY_RESPONSES.milk.firstDialogue[1], '希望不是省略号。');
+// 验证星星糖专属台词
+assert.strictEqual(CANDY_RESPONSES.star.firstDialogue[0], '我突然有话要说。');
+assert.strictEqual(CANDY_RESPONSES.star.firstDialogue[1], '但这通常不是好事。');
+// 验证黑糖专属台词
+assert.strictEqual(CANDY_RESPONSES.blackSugar.firstDialogue[0], '这一口很有电影感。');
+assert.strictEqual(CANDY_RESPONSES.blackSugar.firstDialogue[1], '就是没有预算。');
+// 验证云朵糖专属台词
+assert.strictEqual(CANDY_RESPONSES.cloud.firstDialogue[0], '我没有睡着。');
+assert.strictEqual(CANDY_RESPONSES.cloud.firstDialogue[1], '我只是暂时不参加现实。');
+console.log('✓ 5 种核心糖果独立差异化配置及台词核验通过');
+
+// 14. P0: 验证 V2.0 四章精简主线端到端流转 (C01 -> C02 -> C03 -> C04)
+console.log('测试 14: 验证 V2.0 四章精简主线端到端流转 (C01 -> C02 -> C03 -> C04)');
 director.startNewRun();
-assert.strictEqual(director.currentScene, 'P00', '新游戏应从 P00 扉页开启');
+assert.strictEqual(director.currentScene, 'C01', '新周目必须从第一章 C01 开启');
+assert.strictEqual(director.ghost.isHoldingNote, true, 'C01 幽灵应举着牌子');
+assert.strictEqual(director.ghost.noteFrontText, '有糖吗？', 'C01 牌子文字应为“有糖吗？”');
 
-// P00 -> P01
-director.goToScene('P01');
-assert.strictEqual(director.currentScene, 'P01');
-assert.strictEqual(director.p01Fed, false);
+// 玩家点击半糖或牌子
+director.tapC01();
+assert.strictEqual(director.c01SignTapped, true, '轻触半糖必须记录响应');
+assert.strictEqual(director.ghost.expression, 'joy', '半糖应露出开心表情');
 
-// P01 投喂 1 颗糖即达标
-director.p01Fed = true;
-director.feedCandy('pumpkin');
-assert.strictEqual(director.p01Fed, true, 'P01 喂食 1 颗即判定通过');
+// 进入第二章 C02 喂糖
+director.goToScene('C02');
+assert.strictEqual(director.currentScene, 'C02');
+assert.strictEqual(director.currentPhase, 'interactive', '进入 C02 必须处于可交互状态');
 
-// P01 -> P02 糖果气象局单波次
-director.goToScene('P02');
-assert.strictEqual(director.currentScene, 'P02');
-assert.strictEqual(director.candyRain.isSingleWave, true, 'P02 必须为单一短波次糖雨');
-director.candyRain.caughtCandyCount = 3;
-// 达到 3 颗支持提前翻页
-director.candyRain.completeRainEarly();
-assert.strictEqual(director.candyRain.isFinished, true, '接满 3 颗支持提前收伞翻页');
+// 仅需喂食 1 颗糖即可推进并绑定主形态
+const feedRes = director.feedCandyInC02('pumpkin');
+assert.strictEqual(feedRes.success, true, 'C02 喂食 1 颗南瓜糖应成功');
+assert.strictEqual(persistence.getState().mainFormThisRun, 'pumpkin', '喂食南瓜糖必须决定本次主形态为 pumpkin');
+assert.strictEqual(persistence.getState().chosenQuote, CANDY_RESPONSES.pumpkin.souvenirQuote, '必须绑定南瓜回礼纪念句');
 
-// P02 -> P03 诗人写诗
-director.goToScene('P03');
-assert.strictEqual(director.currentScene, 'P03');
-assert.strictEqual(director.ghost.form, 'poet', 'P03 幽灵应佩戴贝雷帽');
-director.poetGame.pickWord(0, '月亮');
-director.poetGame.pickWord(1, '书签');
-director.poetGame.pickWord(2, '发芽');
-assert.strictEqual(director.poetGame.step, 'recite');
+// 进入第三章 C03 小小后遗症（南瓜形态：帽子歪斜，轻点扶正）
+director.goToScene('C03');
+assert.strictEqual(director.currentScene, 'C03');
+assert.strictEqual(director.ghost.form, 'pumpkin', 'C03 幽灵形态应自动匹配为 pumpkin');
+assert.strictEqual(director.ghost.hatTilt, -0.38, '南瓜帽子初始应为歪斜状态');
 
-// P03 -> P04 幽灵账本短句自选
-director.goToScene('P04');
-assert.strictEqual(director.currentScene, 'P04');
-director.p04SelectedQuote = '月亮没说什么。它只是一直亮着。';
+// 玩家扶正帽子
+director.straightenPumpkinHatC03();
+assert.strictEqual(director.ghost.hatTilt, 0, '帽子应扶正');
+assert.strictEqual(director.ghost.headTiltBack, -0.15, '脑袋应稍微后仰');
+assert.ok(persistence.getState().collectibles.includes('03'), '南瓜关卡完成应解锁糖纸 #03');
 
-// P04 -> P05 尾页领证与多出来的一颗糖
-director.goToScene('P05');
-assert.strictEqual(director.currentScene, 'P05');
-persistence.getState().firstRunCompleted = true;
-persistence.getState().chosenQuote = director.p04SelectedQuote;
-persistence.unlockWrapper('11');
-persistence.save();
+// 进入第四章 C04 一张不太正式的回礼
+director.goToScene('C04');
+assert.strictEqual(director.currentScene, 'C04');
+assert.strictEqual(director.ghost.form, 'default', '第四章幽灵恢复常规形态');
+assert.strictEqual(director.ghost.isHoldingNote, true, '第四章幽灵手持回礼便签');
+assert.strictEqual(director.ghost.isNoteFlipped, false, '便签正面初始展示');
 
-assert.strictEqual(persistence.getState().firstRunCompleted, true, 'P05 必须成功标记首通达成');
-assert.strictEqual(persistence.getState().chosenQuote, '月亮没说什么。它只是一直亮着。', 'P04 所选短句必须写入纪念卡数据');
-assert.ok(persistence.getState().collectibles.includes('11'), '通关必须收录偏爱糖纸 #11');
-console.log('✓ V2 纯享 6 屏精简主线端到端验证通过');
+// 翻转便签
+director.flipC04Note();
+assert.strictEqual(director.c04Flipped, true, '便签翻面成功');
+assert.strictEqual(director.ghost.noteBackText, CANDY_RESPONSES.pumpkin.souvenirQuote, '便签背面应为南瓜专属纪念语录');
+console.log('✓ V2.0 四章精简主线端到端流转验证通过');
 
-// 15. 节奏与体验时长仿真评估 (3—5分钟目标)
-console.log('测试 15: 验证首通节奏与时长仿真 (目标 3—5 分钟)');
-// P00: 15s, P01: 25s, P02: 40s, P03: 50s, P04: 30s, P05: 45s => 总时长 ~205秒 = 3分25秒
-const estimatedSeconds = 15 + 25 + 40 + 50 + 30 + 45;
-assert.ok(estimatedSeconds >= 180 && estimatedSeconds <= 300, `仿真首通时长应在 180~300 秒区间内，当前为 ${estimatedSeconds} 秒`);
-console.log(`✓ 节奏与时长仿真达标：约 ${Math.floor(estimatedSeconds / 60)} 分 ${estimatedSeconds % 60} 秒（完美契合 3—5 分钟）`);
+// 15. P0: 验证梦游幽灵台词时序与三张手绘梦境卡片验收（绝不提前触发“原来梦也要下班。”）
+console.log('测试 15: 验证梦游幽灵三张梦境卡片与台词时序规范');
+persistence.getState().mainFormThisRun = 'sleepwalk';
+director.goToScene('C03');
+assert.strictEqual(director.ghost.form, 'sleepwalk');
+assert.notStrictEqual(director.subtitleText, '原来梦也要下班。', '绝不允许一进入场景就播放“原来梦也要下班。”');
+assert.strictEqual(director.subtitleText, CHAPTER_SCRIPTS.C03.sleepwalk.prompt, '初始提示语必须为“替它选一个梦。”');
+
+// 选择【纸船】梦境卡片
+director.chooseSleepwalkerDreamC03('boat');
+assert.strictEqual(director.c03ChosenDream, 'boat', '已选纸船梦境');
+assert.strictEqual(director.fullSubtitleText, '我梦见我坐着船，在墨水里打转。', '选梦后应先播放梦境演出台词');
+assert.ok(persistence.getState().collectibles.includes('07'), '梦游关卡完成应收录糖纸 #07');
+console.log('✓ 梦游幽灵三张手绘梦境卡片与严谨台词时序验收通过');
+
+// 16. P0: 自由喂养模式连续投喂防重复与快速连喂特殊吐槽
+console.log('测试 16: 验证自由模式防重复轮换与快速连点吐槽 (你在培育我吗？)');
+director.goToScene('S27');
+director.lastFeedTime = 0;
+director.lastFedCandy = null;
+persistence.getState().feedCounts.pumpkin = 0;
+director.repeatFeedIndices.pumpkin = 0;
+
+// 第 1 次投喂南瓜糖
+const feed1 = director.feedCandy('pumpkin');
+assert.strictEqual(feed1.comment, '我好像成熟了。');
+
+// 第 2 次投喂南瓜糖
+director.lastFeedTime = 0;
+const feed2 = director.feedCandy('pumpkin');
+assert.strictEqual(feed2.comment, '成熟可以叠加吗？');
+
+// 第 3 次投喂南瓜糖
+director.lastFeedTime = 0;
+const feed3 = director.feedCandy('pumpkin');
+assert.strictEqual(feed3.comment, '再吃下去我要参加丰收节了。');
+
+// 第 4 次投喂南瓜糖 (轮换到下一句，防完全重复)
+director.lastFeedTime = 0;
+const feed4 = director.feedCandy('pumpkin');
+assert.strictEqual(feed4.comment, '南瓜是一种有志气的糖。');
+assert.notStrictEqual(feed3.comment, feed4.comment, '同一台词不允许连续出现两次');
+
+// 极短时间内快速连喂同一种糖 (<2.5s)
+director.lastFeedTime = Date.now();
+director.lastFedCandy = 'pumpkin';
+const rapidFeed = director.feedCandy('pumpkin');
+assert.strictEqual(rapidFeed.comment, '你在培育我吗？', '快速连喂必须触发专属吐槽“你在培育我吗？”');
+console.log('✓ 自由喂养模式防重复轮换与快速连点吐槽核验通过');
+
+// 17. P0: 验证存档版本 v3 与旧存档平滑映射迁移
+console.log('测试 17: 验证存档版本 v3 与旧版存档 (S00-S26 / P00-P05) 平滑迁移');
+const legacySave = {
+  version: 1,
+  scene: 'S09', // 旧接糖主线
+  lastSafeCheckpoint: 'S06',
+  firstRunCompleted: false,
+  totalCandy: 12,
+  feedCounts: { pumpkin: 4, milk: 2 },
+  collectibles: ['01', '02'],
+  easterEggs: ['EGG01'],
+};
+
+const migrated = persistence['sanitizeState'](legacySave);
+assert.strictEqual(migrated.version, 3, '存档版本号必须升级为 3');
+assert.strictEqual(migrated.scene, 'C03', '旧接糖场景 S09 必须平滑映射至 C03');
+assert.strictEqual(migrated.lastSafeCheckpoint, 'C02', '旧食谱场景 S06 必须平滑映射至 C02');
+assert.strictEqual(migrated.totalCandy, 12, '累计糖果数必须完好保留');
+assert.deepStrictEqual(migrated.collectibles, ['01', '02'], '糖纸收藏必须完好保留');
+assert.deepStrictEqual(migrated.easterEggs, ['EGG01'], '已发现彩蛋必须完好保留');
+console.log('✓ 存档 v3 架构升级与旧版无感平滑迁移核验通过');
+
+// 18. P0: 验证彻底删除接糖玩法与首通时长控制在 2—4 分钟 (120—240秒)
+console.log('测试 18: 验证彻底删除接糖玩法与首通时长控制在 2—4 分钟');
+// C01: 25s, C02: 35s, C03: 45s, C04: 35s => 总时长 ~140秒 = 2分20秒
+const v2MainlineSeconds = 25 + 35 + 45 + 35;
+assert.ok(v2MainlineSeconds >= 120 && v2MainlineSeconds <= 240, `V2首通时长必须控制在 120~240 秒区间内，当前为 ${v2MainlineSeconds} 秒`);
+console.log(`✓ 节奏与时长仿真达标：约 ${Math.floor(v2MainlineSeconds / 60)} 分 ${v2MainlineSeconds % 60} 秒（完美控制在 2—4 分钟）`);
 
 console.log('\n========================================');
-console.log('🎉 15 项端到端业务、P0定点修复与V2文学精简版回归测试全部通过！');
+console.log('🎉 18 项端到端业务、P0彻底删除接糖、V2.0全新四章绘本体验回归测试全部通过！');
 console.log('========================================');

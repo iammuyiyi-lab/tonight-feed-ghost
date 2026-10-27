@@ -1,4 +1,8 @@
 export type SceneId =
+  | 'C01' // Chapter 1: 有只鬼掉进了书里 (第一页 · 遇见)
+  | 'C02' // Chapter 2: 给一只鬼一颗糖 (第二页 · 一颗糖)
+  | 'C03' // Chapter 3: 小小后遗症 (第三页 · 小小后遗症)
+  | 'C04' // Chapter 4: 回礼 (第四页 · 回礼)
   | 'P00' // V2 Cover: Tonight a ghost stays over
   | 'P01' // V2 Page 1: An unqualified scarer (feed 1 candy)
   | 'P02' // V2 Page 2: Candy weather report (single wave)
@@ -36,6 +40,28 @@ export type SceneId =
   | 'S28' // Ghost Handbook
   | 'S29' // Settings & Pause modal
   | 'S30'; // Hidden Heart Ghost
+
+export type ScenePhase =
+  | 'enter'
+  | 'dialogue'
+  | 'interactive'
+  | 'resolving'
+  | 'outro'
+  | 'transitioning';
+
+export interface CandyFeedbackConfig {
+  id: CandyType;
+  name: string;
+  formId: GhostFormId;
+  firstDialogue: string[];
+  repeatDialogues: string[][];
+  rapidDialogue: string;
+  animationId: string;
+  expressionId: GhostExpression;
+  soundId: string;
+  transitionId: string;
+  souvenirQuote: string;
+}
 
 export type GhostFormId =
   | 'default'

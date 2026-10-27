@@ -778,3 +778,149 @@ input:checked + .slider:before {
   max-height: 140px;
   overflow: auto;
 }
+
+/* ================= V2 Mainline Experience Styles ================= */
+.candy-feeding-tray {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 4px;
+}
+
+.feed-candy-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  cursor: pointer;
+  touch-action: none;
+  min-width: 52px;
+  min-height: 44px;
+  transition: transform 0.15s ease;
+}
+
+.feed-candy-item:active {
+  transform: scale(0.92);
+}
+
+.feed-candy-badge {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 6px rgba(71, 57, 47, 0.22);
+}
+
+.feed-candy-name {
+  font-size: 11px;
+  font-weight: 600;
+  margin-top: 4px;
+  color: var(--color-ink-brown);
+  text-align: center;
+  letter-spacing: 0.5px;
+}
+
+.poet-v2-chips-container {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+}
+
+.sleepwalk-cards-container {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+}
+
+.dream-art-card {
+  background: var(--color-paper-light);
+  border: 2px solid var(--color-ink-brown);
+  border-radius: 8px;
+  padding: 10px 14px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  box-shadow: 2px 3px 0 var(--color-ink-brown);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  min-width: 72px;
+  min-height: 80px;
+}
+
+.dream-art-card:active {
+  transform: translateY(2px);
+  box-shadow: 0 1px 0 var(--color-ink-brown);
+}
+
+.dream-sketch-svg {
+  width: 42px;
+  height: 42px;
+}
+
+.dream-card-name {
+  font-size: 13px;
+  font-weight: bold;
+  color: var(--color-ink-brown);
+}
+
+.dream-visual-presentation {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 12px;
+  background: rgba(255, 253, 247, 0.9);
+  border: 2px dashed var(--color-ink-brown);
+  border-radius: 10px;
+  animation: fadeIn 0.4s ease;
+}
+
+.dream-anim-symbol {
+  font-size: 32px;
+}
+
+.dream-anim-caption {
+  font-size: 14px;
+  color: var(--color-ink-brown);
+  font-style: italic;
+}
+
+.movie-title-card-overlay {
+  background: #222;
+  color: #F7E9D2;
+  border: 3px double #F7E9D2;
+  border-radius: 6px;
+  padding: 16px 22px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.45);
+  animation: fadeIn 0.3s ease;
+}
+
+.movie-film-banner {
+  font-size: 11px;
+  letter-spacing: 2px;
+  color: #ED9A55;
+  font-family: monospace;
+}
+
+.movie-film-title {
+  font-size: 18px;
+  font-weight: bold;
+  letter-spacing: 1px;
+}
+
+.movie-film-sub {
+  font-size: 12px;
+  color: #AAA;
+}

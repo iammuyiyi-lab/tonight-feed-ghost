@@ -152,22 +152,16 @@ class GameApp {
     }
   }
 
-  // P0-02: Proper startup recovery from checkpoint without permanently restarting prologue
+  // P0: Startup recovery from checkpoint for V2 streamlined 4-chapter mainline
   private handleStartupCheckpoint(): void {
     const state = this.persistence.getState();
-    const checkpoint = state.lastSafeCheckpoint || 'P00';
+    const checkpoint = state.lastSafeCheckpoint || 'C01';
 
-    if (!state.firstRunCompleted) {
-      if (['P00', 'P01', 'P02', 'P03', 'P04', 'P05'].includes(checkpoint)) {
-        this.director.goToScene(checkpoint);
-      } else {
-        this.director.goToScene('P00');
-      }
-      return;
+    if (['C01', 'C02', 'C03', 'C04', 'S27'].includes(checkpoint)) {
+      this.director.goToScene(checkpoint);
+    } else {
+      this.director.goToScene('C01');
     }
-
-    // Returning user after first completion: start at P00
-    this.director.goToScene('P00');
   }
 
   private resizeCanvas(): void {
@@ -305,7 +299,10 @@ class GameApp {
 
         if (dist < 72) {
           // Suction and feed!
-          if (this.director.currentScene === 'P01') {
+          if (this.director.currentScene === 'C02') {
+            this.director.feedCandyInC02(this.draggingCandy);
+            this.renderControlsForScene('C02');
+          } else if (this.director.currentScene === 'P01') {
             this.ghost.setAction('eat', 0.6);
             this.audio.playSfx('swallow');
             this.director.p01Fed = true;
@@ -325,7 +322,9 @@ class GameApp {
         } else {
           // Dropped on empty floor
           this.audio.playSfx('boop');
-          if (this.director.currentScene === 'P01') {
+          if (this.director.currentScene === 'C02') {
+            this.director.showTransientBubble('糖掉在纸上了。请直接点选糖果或拖进嘴里。');
+          } else if (this.director.currentScene === 'P01') {
             this.ghost.setAction('angry', 1.0);
             this.director.showTransientBubble('拖偏了。我现在比较脆弱。');
           } else if (this.director.currentScene === 'S04') {
@@ -347,6 +346,22 @@ class GameApp {
     const onGhost = Math.sqrt(dx * dx + dy * dy) < 80;
 
     if (onGhost) {
+      if (s === 'C01') {
+        this.director.tapC01();
+        return;
+      } else if (s === 'C03') {
+        if (this.ghost.form === 'pumpkin') {
+          this.director.straightenPumpkinHatC03();
+          return;
+        } else if (this.ghost.form === 'milktea') {
+          this.director.shakeMilkTeaC03();
+          return;
+        }
+      } else if (s === 'C04') {
+        this.director.flipC04Note();
+        return;
+      }
+
       this.audio.playSfx('poke');
       const { pokeCount5In5s } = this.ghost.poke();
 
@@ -435,35 +450,41 @@ class GameApp {
 
   // --- Header Updating ---
   private updateHeader(scene: SceneId): void {
-    let indicator = 'Ⅰ / Ⅴ';
-    if (scene === 'P00') {
-      indicator = '扉页 · 今晚有鬼借宿';
-    } else if (scene === 'P01') {
-      indicator = '第一页 · 不合格的恐吓者';
-    } else if (scene === 'P02') {
-      indicator = '第二页 · 糖果气象报告';
-    } else if (scene === 'P03') {
-      indicator = '第三页 · 一首没用的诗';
-    } else if (scene === 'P04') {
-      indicator = '第四页 · 幽灵账本';
-    } else if (scene === 'P05') {
-      indicator = '尾页 · 多出来的一颗糖';
-    } else if (['S00', 'S01', 'S02', 'S03', 'S04', 'S05'].includes(scene)) {
-      indicator = '序章 · 掉落';
-    } else if (['S06', 'S07', 'S08'].includes(scene)) {
-      indicator = 'Ⅰ / Ⅴ · 食谱';
-    } else if (['S09', 'S10', 'S11', 'S12', 'S13'].includes(scene)) {
-      indicator = 'Ⅱ / Ⅴ · 糖雨';
-    } else if (scene.startsWith('S15') || scene.startsWith('S16') || scene.startsWith('S17') || scene.startsWith('S18') || scene.startsWith('S19') || scene === 'S14' || scene === 'S20') {
-      indicator = 'Ⅲ / Ⅴ · 变身';
-    } else if (['S21', 'S22', 'S23', 'S24'].includes(scene)) {
-      indicator = 'Ⅳ / Ⅴ · 付账';
-    } else if (['S25', 'S26'].includes(scene)) {
-      indicator = 'Ⅴ / Ⅴ · 尾声';
+    let indicator = '第一页 · 遇见';
+    if (scene === 'C01') {
+      indicator = '第一页 · 遇见';
+    } else if (scene === 'C02') {
+      indicator = '第二页 · 一颗糖';
+    } else if (scene === 'C03') {
+      indicator = '第三页 · 小小后遗症';
+    } else if (scene === 'C04') {
+      indicator = '第四页 · 回礼';
     } else if (scene === 'S27') {
-      indicator = '自由喂养 · 夜班';
+      indicator = '夜班 · 自由喂养';
+    } else if (scene === 'S28') {
+      indicator = '幽灵手册 · 记录';
+    } else if (scene === 'S29') {
+      indicator = '纸签 · 设置';
     } else if (scene === 'S30') {
       indicator = '隐藏心事 · 秘密';
+    } else if (scene === 'P00') {
+      indicator = '扉页 · 今晚有鬼借宿';
+    } else if (scene === 'P01') {
+      indicator = '第一页 · 遇见';
+    } else if (scene === 'P02') {
+      indicator = '第二页 · 一颗糖';
+    } else if (scene === 'P03') {
+      indicator = '第三页 · 小小后遗症';
+    } else if (scene === 'P04' || scene === 'P05') {
+      indicator = '第四页 · 回礼';
+    } else if (['S00', 'S01', 'S02', 'S03', 'S04', 'S05'].includes(scene)) {
+      indicator = '第一页 · 遇见';
+    } else if (['S06', 'S07', 'S08'].includes(scene)) {
+      indicator = '第二页 · 一颗糖';
+    } else if (scene.startsWith('S15') || scene.startsWith('S16') || scene.startsWith('S17') || scene.startsWith('S18') || scene.startsWith('S19') || scene === 'S14' || scene === 'S20') {
+      indicator = '第三页 · 小小后遗症';
+    } else if (['S21', 'S22', 'S23', 'S24', 'S25', 'S26'].includes(scene)) {
+      indicator = '第四页 · 回礼';
     }
     this.pageIndicator.innerText = indicator;
   }
@@ -475,6 +496,214 @@ class GameApp {
     const state = this.persistence.getState();
 
     switch (scene) {
+      case 'C01': {
+        if (!this.director.c01SignTapped) {
+          const tapBtn = document.createElement('button');
+          tapBtn.className = 'paper-btn accent';
+          tapBtn.innerText = '轻触半糖 / 招手';
+          tapBtn.onclick = () => {
+            this.director.tapC01();
+          };
+          this.bottomActionRow.appendChild(tapBtn);
+        }
+        break;
+      }
+
+      case 'C02': {
+        const tray = document.createElement('div');
+        tray.className = 'candy-feeding-tray';
+
+        const candyTypes: CandyType[] = ['pumpkin', 'milk', 'star', 'blackSugar', 'cloud'];
+        candyTypes.forEach((type) => {
+          const meta = CANDIES[type];
+          const candyEl = document.createElement('div');
+          candyEl.className = 'feed-candy-item';
+          candyEl.setAttribute('data-candy', type);
+
+          const icon = this.getCandySvgIcon(type);
+          candyEl.innerHTML = `
+            <div class="feed-candy-badge" style="background: ${meta.color}; border: 2px solid ${meta.accent};">
+              ${icon}
+            </div>
+            <div class="feed-candy-name">${meta.name}</div>
+          `;
+
+          candyEl.onclick = (e) => {
+            e.stopPropagation();
+            if (this.director.currentPhase === 'interactive') {
+              this.director.feedCandyInC02(type);
+              this.renderControlsForScene('C02');
+            }
+          };
+
+          candyEl.onpointerdown = (e) => {
+            if (this.director.currentPhase === 'interactive') {
+              this.draggingCandy = type;
+              this.candyDragX = e.clientX;
+              this.candyDragY = e.clientY;
+            }
+          };
+
+          tray.appendChild(candyEl);
+        });
+
+        this.bottomActionRow.appendChild(tray);
+        break;
+      }
+
+      case 'C03': {
+        const form = this.ghost.form;
+        if (form === 'pumpkin') {
+          if (!this.director.c03Finished) {
+            const straightenBtn = document.createElement('button');
+            straightenBtn.className = 'paper-btn accent';
+            straightenBtn.innerText = '扶正帽子';
+            straightenBtn.onclick = () => {
+              this.director.straightenPumpkinHatC03();
+            };
+            this.bottomActionRow.appendChild(straightenBtn);
+          }
+        } else if (form === 'milktea') {
+          if (!this.director.c03Finished) {
+            const shakeBtn = document.createElement('button');
+            shakeBtn.className = 'paper-btn accent';
+            shakeBtn.innerText = '轻轻摇一下';
+            shakeBtn.onclick = () => {
+              this.director.shakeMilkTeaC03();
+            };
+            this.bottomActionRow.appendChild(shakeBtn);
+          }
+        } else if (form === 'poet') {
+          if (!this.director.c03Finished) {
+            const container = document.createElement('div');
+            container.className = 'poet-v2-chips-container';
+
+            const words: Array<'月亮' | '糖纸' | '失眠'> = ['月亮', '糖纸', '失眠'];
+            words.forEach((w) => {
+              const chip = document.createElement('button');
+              chip.className = 'poet-word-chip';
+              chip.innerText = `【${w}】`;
+              chip.onclick = (e) => {
+                e.stopPropagation();
+                this.director.choosePoetWordC03(w);
+              };
+              container.appendChild(chip);
+            });
+            this.minigameOverlay.appendChild(container);
+          } else {
+            const poem = this.director.poetGame.generatedPoem;
+            if (poem) {
+              const card = document.createElement('div');
+              card.className = 'poet-manuscript-card';
+              card.innerHTML = `
+                <div class="poet-manuscript-title">${poem.title}</div>
+                <div class="poet-manuscript-line">${poem.lines[0]}</div>
+                <div class="poet-manuscript-line">${poem.lines[1]}</div>
+                <div class="poet-manuscript-line">${poem.lines[2]}</div>
+              `;
+              this.minigameOverlay.appendChild(card);
+            }
+            const foldBtn = document.createElement('button');
+            foldBtn.className = 'paper-btn accent';
+            foldBtn.innerText = '把诗折起来 →';
+            foldBtn.onclick = () => {
+              this.director.finishPoetC03();
+            };
+            this.bottomActionRow.appendChild(foldBtn);
+          }
+        } else if (form === 'movie') {
+          if (!this.director.c03Finished) {
+            const clapperBtn = document.createElement('button');
+            clapperBtn.className = 'paper-btn accent';
+            clapperBtn.innerText = '🎬 咔！开拍';
+            clapperBtn.onclick = () => {
+              this.director.hitMovieSlateC03();
+            };
+            this.bottomActionRow.appendChild(clapperBtn);
+          } else {
+            const titleCard = document.createElement('div');
+            titleCard.className = 'movie-title-card-overlay';
+            titleCard.innerHTML = `
+              <div class="movie-film-banner">FILM TAKE #1</div>
+              <div class="movie-film-title">《一只幽灵差点拥有剧情》</div>
+              <div class="movie-film-sub">杀青特快 · 零预算出品</div>
+            `;
+            this.minigameOverlay.appendChild(titleCard);
+          }
+        } else if (form === 'sleepwalk') {
+          if (!this.director.c03Finished) {
+            const cardsContainer = document.createElement('div');
+            cardsContainer.className = 'sleepwalk-cards-container';
+
+            const dreams: Array<{ id: 'door' | 'boat' | 'window'; label: string; sketch: string }> = [
+              {
+                id: 'door',
+                label: '纸门',
+                sketch: `<svg viewBox="0 0 60 60" class="dream-sketch-svg"><rect x="15" y="10" width="30" height="42" fill="none" stroke="#47392F" stroke-width="2.5"/><line x1="38" y1="32" x2="40" y2="32" stroke="#47392F" stroke-width="3"/><rect x="22" y="18" width="16" height="26" fill="none" stroke="#A5A0C8" stroke-width="1.8" stroke-dasharray="2,2"/></svg>`,
+              },
+              {
+                id: 'boat',
+                label: '纸船',
+                sketch: `<svg viewBox="0 0 60 60" class="dream-sketch-svg"><path d="M12 36 L48 36 L40 46 L20 46 Z" fill="none" stroke="#47392F" stroke-width="2.5"/><path d="M30 16 L30 36 L18 36 Z" fill="none" stroke="#A5A0C8" stroke-width="2"/><path d="M8 50 Q 30 54 52 50" fill="none" stroke="#47392F" stroke-width="1.5"/></svg>`,
+              },
+              {
+                id: 'window',
+                label: '窗户',
+                sketch: `<svg viewBox="0 0 60 60" class="dream-sketch-svg"><rect x="14" y="12" width="32" height="36" fill="none" stroke="#47392F" stroke-width="2.5"/><line x1="30" y1="12" x2="30" y2="48" stroke="#47392F" stroke-width="1.5"/><line x1="14" y1="30" x2="46" y2="30" stroke="#47392F" stroke-width="1.5"/><circle cx="22" cy="22" r="3" fill="#F4CA64"/></svg>`,
+              },
+            ];
+
+            dreams.forEach((d) => {
+              const card = document.createElement('div');
+              card.className = 'dream-art-card';
+              card.innerHTML = `
+                <div class="dream-card-sketch">${d.sketch}</div>
+                <div class="dream-card-name">【${d.label}】</div>
+              `;
+              card.onclick = (e) => {
+                e.stopPropagation();
+                this.director.chooseSleepwalkerDreamC03(d.id);
+              };
+              cardsContainer.appendChild(card);
+            });
+            this.minigameOverlay.appendChild(cardsContainer);
+          } else if (this.director.c03ChosenDream) {
+            const dreamAnim = document.createElement('div');
+            dreamAnim.className = 'dream-visual-presentation';
+            if (this.director.c03ChosenDream === 'door') {
+              dreamAnim.innerHTML = `<div class="dream-anim-symbol">🚪 ➡️ 🚪</div><div class="dream-anim-caption">门后还是门</div>`;
+            } else if (this.director.c03ChosenDream === 'boat') {
+              dreamAnim.innerHTML = `<div class="dream-anim-symbol spin-boat">⛵ 🌀</div><div class="dream-anim-caption">在墨水涟漪里打转</div>`;
+            } else {
+              dreamAnim.innerHTML = `<div class="dream-anim-symbol drop-candy">🪟 🍬✨</div><div class="dream-anim-caption">天上下起不会过期的糖</div>`;
+            }
+            this.minigameOverlay.appendChild(dreamAnim);
+          }
+        }
+        break;
+      }
+
+      case 'C04': {
+        if (!this.director.c04Flipped) {
+          const flipBtn = document.createElement('button');
+          flipBtn.className = 'paper-btn secondary';
+          flipBtn.innerText = '翻看便签背面 →';
+          flipBtn.onclick = () => {
+            this.director.flipC04Note();
+          };
+          this.bottomActionRow.appendChild(flipBtn);
+        } else {
+          const certBtn = document.createElement('button');
+          certBtn.className = 'paper-btn accent';
+          certBtn.innerText = '把今晚夹进书里 🔖';
+          certBtn.onclick = () => {
+            this.showCertificateModal();
+          };
+          this.bottomActionRow.appendChild(certBtn);
+        }
+        break;
+      }
+
       case 'P00': {
         const startBtn = document.createElement('button');
         startBtn.className = 'paper-btn accent';
@@ -1537,6 +1766,62 @@ class GameApp {
     });
   }
 
+  private showCertificateModal(): void {
+    const state = this.persistence.getState();
+    const endingTitle = '万圣节快乐持有证';
+    const subNote = state.chosenQuote || '有些夜晚并不特别。有人替它多留了一颗糖。';
+    const cardUrl = EndingCardRenderer.renderCardToDataUrl(state, endingTitle, subNote, state.chosenQuote);
+    state.firstRunCompleted = true;
+    this.persistence.save();
+
+    this.modalOverlay.style.display = 'flex';
+    this.modalOverlay.innerHTML = `
+      <div class="card-preview-modal">
+        <img src="${cardUrl}" alt="万圣节快乐持有证" />
+        <div class="settings-footer" style="flex-direction: column; gap: 8px;">
+          <div style="font-size: 13px; color: ${THEME_COLORS.inkBrown}; text-align: center; font-weight: bold;">
+            长按上方图片存储至相册，或选择下方动作：
+          </div>
+          <div style="display: flex; gap: 10px; width: 100%; justify-content: center;">
+            <button class="paper-btn secondary" id="certRestartBtn">再翻一次 ↺</button>
+            <button class="paper-btn accent" id="certFreeFeedBtn">去看看半糖 👻</button>
+          </div>
+        </div>
+      </div>
+    `;
+
+    document.getElementById('certRestartBtn')?.addEventListener('click', () => {
+      this.modalOverlay.style.display = 'none';
+      this.director.startNewRun();
+    });
+
+    document.getElementById('certFreeFeedBtn')?.addEventListener('click', () => {
+      this.modalOverlay.style.display = 'none';
+      this.director.goToScene('S27');
+    });
+  }
+
+  private getCandySvgIcon(type: CandyType): string {
+    switch (type) {
+      case 'pumpkin':
+        return `<svg viewBox="0 0 24 24" width="22" height="22"><path d="M12 4 C11 2 13 2 12 1 M6 7 C3 9 3 17 6 19 C8 21 16 21 18 19 C21 17 21 9 18 7 C15 5 9 5 6 7 Z" fill="#ED9A55" stroke="#47392F" stroke-width="1.5"/></svg>`;
+      case 'milk':
+        return `<svg viewBox="0 0 24 24" width="22" height="22"><rect x="4" y="6" width="16" height="12" rx="4" fill="#FFFFFF" stroke="#47392F" stroke-width="1.5"/><circle cx="9" cy="12" r="1.5" fill="#47392F"/><circle cx="15" cy="12" r="1.5" fill="#47392F"/></svg>`;
+      case 'star':
+        return `<svg viewBox="0 0 24 24" width="22" height="22"><polygon points="12,2 15,9 22,9 17,14 19,21 12,17 5,21 7,14 2,9 9,9" fill="#F4CA64" stroke="#47392F" stroke-width="1.5"/></svg>`;
+      case 'blackSugar':
+        return `<svg viewBox="0 0 24 24" width="22" height="22"><rect x="5" y="5" width="14" height="14" rx="2" fill="#653D2A" stroke="#47392F" stroke-width="1.5"/><line x1="8" y1="8" x2="16" y2="16" stroke="#3E2417" stroke-width="1.2"/></svg>`;
+      case 'cloud':
+        return `<svg viewBox="0 0 24 24" width="22" height="22"><path d="M7 16 A4 4 0 0 1 7 8 A5 5 0 0 1 17 8 A4 4 0 0 1 17 16 Z" fill="#F0EFF9" stroke="#47392F" stroke-width="1.5"/></svg>`;
+      case 'mint':
+        return `<svg viewBox="0 0 24 24" width="22" height="22"><polygon points="12,3 21,12 12,21 3,12" fill="#A0D8C3" stroke="#47392F" stroke-width="1.5"/></svg>`;
+      case 'heart':
+        return `<svg viewBox="0 0 24 24" width="22" height="22"><path d="M12 21 C12 21 3 13 3 7 A4.5 4.5 0 0 1 12 5 A4.5 4.5 0 0 1 21 7 C21 13 12 21 12 21 Z" fill="#B66862" stroke="#47392F" stroke-width="1.5"/></svg>`;
+      default:
+        return `<svg viewBox="0 0 24 24" width="22" height="22"><circle cx="12" cy="12" r="8" fill="#F4CA64" stroke="#47392F" stroke-width="1.5"/></svg>`;
+    }
+  }
+
   // --- Main Animation & Render Loop ---
   private renderLoop(time: number): void {
     const dt = Math.min((time - this.lastTime) / 1000, 0.1);
@@ -1590,7 +1875,19 @@ class GameApp {
   private renderBackground(ctx: CanvasRenderingContext2D, scene: SceneId): void {
     ctx.save();
 
-    if (scene === 'P00') {
+    if (scene === 'C01' || scene === 'C02' || scene === 'C03' || scene === 'C04') {
+      ctx.fillStyle = '#F7E9D2';
+      ctx.fillRect(0, 0, this.width, this.height);
+
+      ctx.strokeStyle = 'rgba(71, 57, 47, 0.12)';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(18, 18, this.width - 36, this.height - 36);
+
+      ctx.fillStyle = 'rgba(71, 57, 47, 0.04)';
+      ctx.beginPath();
+      ctx.arc(this.width - 32, 32, 20, 0, Math.PI * 2);
+      ctx.fill();
+    } else if (scene === 'P00') {
       // Midnight book cover for V2 literary edition
       ctx.fillStyle = '#1F2942';
       ctx.fillRect(0, 0, this.width, this.height);
