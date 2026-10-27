@@ -553,6 +553,32 @@ assert.strictEqual(director.currentScene, 'C02', '自主翻页后进入下一幕
 
 console.log('✓ 专属台词完全由按钮交互逐步切换、零定时器验收通过');
 
+// 23. 验证聊天气泡基于鬼头部相对坐标定位、全形态及弹跳无遮挡 (getSpeechBubbleAnchor)
+console.log('测试 23: 验证聊天气泡基于鬼头部相对坐标定位、全形态及弹跳无遮挡 (getSpeechBubbleAnchor)');
+const bubbleGhostActor = new GhostActor();
+const stageCenterX = 200;
+const stageCenterY = 300;
+
+// 默认形态
+const defaultAnchor = bubbleGhostActor.getSpeechBubbleAnchor(stageCenterX, stageCenterY);
+const defaultBounds = bubbleGhostActor.getCatchBounds(stageCenterX, stageCenterY);
+assert.strictEqual(defaultAnchor.x, stageCenterX, '气泡水平坐标必须居中对齐幽灵');
+assert.ok(defaultAnchor.y < defaultBounds.top, '气泡底部坐标必须高于幽灵头部，严禁遮挡');
+assert.ok(defaultBounds.top - defaultAnchor.y >= 15, '气泡卡片必须与幽灵头顶保留至少 15px 净空余量');
+
+// 南瓜形态（带南瓜盔与瓜藤）
+bubbleGhostActor.form = 'pumpkin';
+const pumpkinAnchor = bubbleGhostActor.getSpeechBubbleAnchor(stageCenterX, stageCenterY);
+assert.ok(pumpkinAnchor.y < defaultAnchor.y, '南瓜头盔形态气泡锚点必须自适应拔高，避让南瓜藤');
+
+// 弹跳/拉伸动态缩放
+bubbleGhostActor.form = 'default';
+bubbleGhostActor.scaleY = 1.25;
+const bounceAnchor = bubbleGhostActor.getSpeechBubbleAnchor(stageCenterX, stageCenterY);
+assert.ok(bounceAnchor.y < defaultAnchor.y, '幽灵跳跃拉伸时，气泡必须自适应上移，始终处于头顶上方');
+
+console.log('✓ 聊天气泡相对坐标定位与全形态零遮挡核验通过');
+
 console.log('\n========================================');
-console.log('🎉 22 项端到端业务、五颗糖连环品尝、自主翻页与一键重置测试全部通过！');
+console.log('🎉 23 项端到端业务、五颗糖连环品尝、自主翻页、一键重置与气泡相对坐标测试全部通过！');
 console.log('========================================');

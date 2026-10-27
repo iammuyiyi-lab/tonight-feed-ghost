@@ -178,7 +178,9 @@ html, body {
   display: none;
   flex-direction: column;
   gap: 3px;
-  max-width: 230px;
+  max-width: 240px;
+  left: 50%;
+  top: calc(48% - 130px);
   transform: translate(-50%, -100%);
   pointer-events: auto;
   cursor: pointer;
@@ -195,7 +197,7 @@ html, body {
 @keyframes bubblePopIn {
   0% {
     opacity: 0;
-    transform: translate(-50%, -85%) scale(0.85);
+    transform: translate(-50%, -92%) scale(0.92);
   }
   100% {
     opacity: 1;

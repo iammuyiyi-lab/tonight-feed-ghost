@@ -149,10 +149,7 @@ class GameApp {
         this.ghostBubbleText.innerText = text;
         this.ghostSpeechBubble.style.display = 'flex';
         this.ghostSpeechBubble.classList.add('visible');
-        const gx = this.ghost.x || (this.width / 2);
-        const gy = (this.ghost.y || (this.height * 0.48)) - 80 + (this.ghost.floatOffsetY || 0);
-        this.ghostSpeechBubble.style.left = `${Math.round(gx)}px`;
-        this.ghostSpeechBubble.style.top = `${Math.round(gy)}px`;
+        this.updateGhostBubblePosition();
       } else {
         this.ghostSpeechBubble.style.display = 'none';
         this.ghostSpeechBubble.classList.remove('visible');
@@ -2173,6 +2170,18 @@ class GameApp {
     }
   }
 
+  // Position ghost speech bubble relative to ghost head apex (zero overlap)
+  private updateGhostBubblePosition(): void {
+    if (!this.ghostSpeechBubble || !this.ghostSpeechBubble.classList.contains('visible')) return;
+    const s = this.director.currentScene;
+    const isCandyRain = ['P02', 'S10', 'S11', 'S12'].includes(s);
+    const gx = isCandyRain ? this.director.candyRain.ghostX : (this.ghost.x || (this.width / 2));
+    const gy = isCandyRain ? this.director.candyRain.ghostY : (this.ghost.y || (this.height * 0.48));
+    const anchor = this.ghost.getSpeechBubbleAnchor(gx, gy);
+    this.ghostSpeechBubble.style.left = `${Math.round(anchor.x)}px`;
+    this.ghostSpeechBubble.style.top = `${Math.round(anchor.y)}px`;
+  }
+
   // --- Main Animation & Render Loop ---
   private renderLoop(time: number): void {
     const dt = Math.min((time - this.lastTime) / 1000, 0.1);
@@ -2182,13 +2191,8 @@ class GameApp {
     this.director.update(dt);
     this.input.update(dt);
 
-    // Dynamic positioning of ghost speech bubble
-    if (this.ghostSpeechBubble && this.ghostSpeechBubble.classList.contains('visible')) {
-      const gx = this.ghost.x;
-      const gy = this.ghost.y - 80 + this.ghost.floatOffsetY;
-      this.ghostSpeechBubble.style.left = `${Math.round(gx)}px`;
-      this.ghostSpeechBubble.style.top = `${Math.round(gy)}px`;
-    }
+    // Dynamic positioning of ghost speech bubble relative to ghost head
+    this.updateGhostBubblePosition();
 
     // Update flying candy animation
     if (this.flyingCandy) {

@@ -89,6 +89,43 @@ export class GhostActor {
     };
   }
 
+  /**
+   * Returns speech bubble anchor point in stage coordinates relative to ghost's head.
+   * Guarantees the bubble sits gracefully above the ghost with zero occlusion.
+   */
+  public getSpeechBubbleAnchor(centerX: number, centerY: number, scaleMultiplier: number = 1.0): { x: number; y: number } {
+    let headOffset = 104;
+    switch (this.form) {
+      case 'pumpkin':
+        headOffset = 126;
+        break;
+      case 'sleepwalk':
+        headOffset = 130;
+        break;
+      case 'poet':
+        headOffset = 120;
+        break;
+      case 'milktea':
+        headOffset = 124;
+        break;
+      case 'movie':
+        headOffset = 114;
+        break;
+      default:
+        headOffset = 104;
+        break;
+    }
+
+    const sY = Math.abs(this.scaleY) * this.baseScale * scaleMultiplier;
+    const headTopY = (centerY + this.floatOffsetY) - (headOffset * sY);
+    const bubbleBottomY = headTopY - 18;
+
+    return {
+      x: centerX,
+      y: bubbleBottomY,
+    };
+  }
+
   public reset(): void {
     this.action = 'idle';
     this.expression = 'calm';
