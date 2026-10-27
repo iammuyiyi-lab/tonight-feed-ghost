@@ -3,7 +3,6 @@ import { AudioDirector } from './systems/audio';
 import { GhostActor } from './systems/ghost';
 import { InputRouter } from './systems/input';
 import { SceneDirector } from './systems/director';
-import { HandbookView } from './views/handbookView';
 import { EndingCardRenderer } from './views/endingCardView';
 import { QADevView } from './views/qaView';
 import { THEME_COLORS, CANDIES, FORMS_META } from './config/constants';
@@ -20,7 +19,6 @@ class GameApp {
   private ghost: GhostActor;
   private director: SceneDirector;
   private input: InputRouter;
-  private handbookView: HandbookView;
   private qaView: QADevView | null = null;
 
   // DOM elements
@@ -36,7 +34,6 @@ class GameApp {
   private bottomActionRow: HTMLElement;
   private modalOverlay: HTMLElement;
   private settingsBtn: HTMLElement;
-  private handbookBtn: HTMLElement;
   private topResetBtn: HTMLElement;
   private transientBubbleEl: HTMLElement;
   private ghostSpeechBubble: HTMLElement;
@@ -79,7 +76,6 @@ class GameApp {
     this.audio = new AudioDirector();
     this.ghost = new GhostActor();
     this.director = new SceneDirector(this.persistence, this.audio, this.ghost);
-    this.handbookView = new HandbookView(this.persistence);
 
     // Fetch DOM references
     this.canvas = document.getElementById('gameCanvas') as HTMLCanvasElement;
@@ -94,7 +90,6 @@ class GameApp {
     this.bottomActionRow = document.getElementById('bottomActionRow')!;
     this.modalOverlay = document.getElementById('modalOverlay')!;
     this.settingsBtn = document.getElementById('settingsBtn')!;
-    this.handbookBtn = document.getElementById('handbookBtn')!;
     this.topResetBtn = document.getElementById('topResetBtn')!;
     this.transientBubbleEl = document.getElementById('transientBubble') || document.createElement('div');
     this.ghostSpeechBubble = document.getElementById('ghostSpeechBubble')!;
@@ -286,11 +281,6 @@ class GameApp {
     // Settings Modal
     this.settingsBtn.addEventListener('click', () => {
       this.openSettingsModal();
-    });
-
-    // Handbook Modal
-    this.handbookBtn.addEventListener('click', () => {
-      this.openHandbookModal();
     });
 
     // Top Header Reset Button (One-click direct reset)
@@ -1261,14 +1251,6 @@ class GameApp {
             this.director.goToScene('S27');
           };
 
-          const handbookBtn = document.createElement('button');
-          handbookBtn.className = 'paper-btn secondary';
-          handbookBtn.innerText = '饲养手册';
-          handbookBtn.onclick = async () => {
-            await this.audio.unlock();
-            this.openHandbookModal();
-          };
-
           const restartBtn = document.createElement('button');
           restartBtn.className = 'paper-btn secondary';
           restartBtn.innerText = '重新翻阅绘本';
@@ -1278,7 +1260,6 @@ class GameApp {
           };
 
           this.bottomActionRow.appendChild(continueBtn);
-          this.bottomActionRow.appendChild(handbookBtn);
           this.bottomActionRow.appendChild(restartBtn);
         } else if (hasProgress) {
           const continueBtn = document.createElement('button');
@@ -1893,11 +1874,6 @@ class GameApp {
         b1.innerText = '再喂它一颗';
         b1.onclick = () => this.director.goToScene('S27');
 
-        const b2 = document.createElement('button');
-        b2.className = 'paper-btn secondary';
-        b2.innerText = '查看饲养手册';
-        b2.onclick = () => this.openHandbookModal();
-
         const b3 = document.createElement('button');
         b3.className = 'paper-btn';
         b3.innerText = '再读一遍';
@@ -1906,7 +1882,6 @@ class GameApp {
         };
 
         this.bottomActionRow.appendChild(b1);
-        this.bottomActionRow.appendChild(b2);
         this.bottomActionRow.appendChild(b3);
         break;
       }
@@ -2111,23 +2086,7 @@ class GameApp {
     }
   }
 
-  private openHandbookModal(): void {
-    this.modalOverlay.style.display = 'flex';
-    this.handbookView.render(
-      this.modalOverlay,
-      (formId) => {
-        // Replay form minigame
-        this.modalOverlay.style.display = 'none';
-        this.director.enterMainFormMiniGame(formId);
-      },
-      () => {
-        this.modalOverlay.style.display = 'none';
-      },
-      () => {
-        this.confirmAndResetProgress();
-      }
-    );
-  }
+  
 
   private showCardPreviewModal(dataUrl: string): void {
     this.modalOverlay.style.display = 'flex';
