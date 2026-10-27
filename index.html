@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <title>今夜宜喂鬼</title>
+    <meta name="description" content="iPhone 离线互动绘本游戏：一只饥饿的幽灵在万圣节误入你的手机。它决定先讨一颗糖，再考虑自己究竟为什么来。" />
+
+    <!-- Apple iOS Safari & PWA Meta -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="今夜宜喂鬼" />
+    <meta name="theme-color" content="#1F2942" />
+
+    <link rel="manifest" href="./manifest.json" />
+    <link rel="icon" type="image/svg+xml" href="./icons/icon.svg" />
+    <link rel="apple-touch-icon" href="./icons/icon-192.png" />
+    <link rel="stylesheet" href="./src/style.css" />
+  </head>
+  <body>
+    <div id="app">
+      <div class="book-wrapper">
+        <div class="book-spine-line"></div>
+
+        <!-- Book Header: Chapter / Page, Settings & Handbook -->
+        <header class="book-header">
+          <div class="page-indicator" id="pageIndicator">Ⅰ / Ⅴ</div>
+          <div class="header-actions">
+            <button class="paper-sign-btn" id="handbookBtn" title="幽灵饲养手册">📖 手册</button>
+            <button class="paper-sign-btn" id="settingsBtn" title="纸签设置">🔖 设置</button>
+          </div>
+        </header>
+
+        <!-- Main Stage Container -->
+        <main class="stage-container" id="stageContainer">
+          <canvas id="gameCanvas"></canvas>
+
+          <!-- Floating Subtitle & Typewriter Box -->
+          <div class="subtitle-container" id="subtitleContainer">
+            <div class="subtitle-box">
+              <div class="subtitle-text" id="subtitleText">正在把夜色装订成册……</div>
+            </div>
+            <div class="subtitle-skip-hint" id="skipHint">点击文字可快进</div>
+          </div>
+
+          <!-- Dynamic Minigame Overlays Container -->
+          <div class="minigame-overlay" id="minigameOverlay"></div>
+        </main>
+
+        <!-- Bottom Workbench & Action Controls -->
+        <footer class="bottom-bar" id="bottomBar">
+          <div class="bottom-action-row" id="bottomActionRow">
+            <button class="paper-btn" id="mainActionBtn">翻开这本书</button>
+          </div>
+        </footer>
+      </div>
+
+      <!-- Landscape Orientation Hint -->
+      <div class="landscape-warning-overlay">
+        <div class="warning-icon">📖</div>
+        <h2>请把书竖起来</h2>
+        <p>半糖看不懂横排，竖屏才能翻阅绘本。</p>
+      </div>
+
+      <!-- Modals Container (Handbook, Settings, Card Preview) -->
+      <div class="modal-overlay" id="modalOverlay" style="display: none;"></div>
+    </div>
+
+    <script type="module" src="./src/main.ts"></script>
+    <script>
+      // Register Service Worker for offline PWA
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('./sw.js').then(
+            (reg) => console.log('PWA ServiceWorker registered:', reg.scope),
+            (err) => console.warn('PWA ServiceWorker registration failed:', err)
+          );
+        });
+      }
+    </script>
+  </body>
+</html>
