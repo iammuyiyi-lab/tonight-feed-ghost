@@ -519,19 +519,28 @@ assert.strictEqual(director.ghostSpeech, '书页重新白了。你好，今晚�
 
 console.log('✓ 一键重置所有进度与归零重归扉页核验通过');
 
-// 22. 验证非自动跳关与玩家自主翻页机制 (拒绝喂糖文字刚出来就倒计时跳过)
-console.log('测试 22: 验证文字完全留存、无倒计时强行跳页、玩家自主翻页与顶部重置按钮机制');
+// 22. 验证非自动跳关与玩家自主翻页机制 (专属台词无定时器，纯靠按钮交互切换)
+console.log('测试 22: 验证专属台词分步按钮交互切换、无定时器倒计时跳过、自主翻页机制');
 director.goToScene('C02');
 director.feedCandyInC02('milk');
 assert.strictEqual(director.currentScene, 'C02', '喂糖后必须停留在 C02，绝不自动跳转');
 assert.strictEqual(director.c02SelectedCandy, 'milk', '当前选糖状态必须锁定在 milk');
-assert.ok(director.ghostSpeech.includes('我身体里出现了标点'), '幽灵初次反馈必须完整呈现在气泡内');
-assert.ok(director.ghostSpeech.includes('标点'), '后遗症异变必须与幽灵对白合并呈现，绝不自动覆盖刷掉');
-assert.strictEqual(director.currentPhase, 'interactive', '必须保持交互状态，等待玩家主动翻页');
+assert.strictEqual(director.c02DialogueStep, 0, '第 1 步台词');
+assert.strictEqual(director.ghostSpeech, '我身体里出现了标点。', '第 1 步台词必须为初尝对白');
 
-// 玩家手动翻页至 C03
-director.goToScene('C03');
-assert.strictEqual(director.currentScene, 'C03');
+// 玩家点击按钮交互切换至第 2 步台词
+director.nextC02DialogueStep();
+assert.strictEqual(director.c02DialogueStep, 1, '推进到第 2 步台词');
+assert.strictEqual(director.ghostSpeech, '希望不是省略号。', '第 2 步台词必须为补充对白');
+
+// 玩家点击按钮交互切换至第 3 步副作用异变台词
+director.nextC02DialogueStep();
+assert.strictEqual(director.c02DialogueStep, 2, '推进到第 3 步副作用台词');
+assert.ok(director.ghostSpeech.includes('问号') || director.ghostSpeech.includes('标点'), '第 3 步必须为后遗症异变台词');
+
+// 玩家点击按钮交互翻页
+director.nextC02DialogueStep();
+assert.strictEqual(director.currentScene, 'C03', '最后一步点击后进入 C03');
 director.shakeMilkTeaC03();
 assert.strictEqual(director.c03Finished, true);
 assert.ok(director.ghostSpeech.includes('问号'), 'C03 互动后角色台词必须完好保留在气泡中');
@@ -542,7 +551,7 @@ assert.strictEqual(director.currentScene, 'C03', 'C03 互动后绝不得倒计�
 director.advanceFromC03();
 assert.strictEqual(director.currentScene, 'C02', '自主翻页后进入下一幕选糖');
 
-console.log('✓ 玩家阅读节奏完全自主把控、杜绝强制跳页验收通过');
+console.log('✓ 专属台词完全由按钮交互逐步切换、零定时器验收通过');
 
 console.log('\n========================================');
 console.log('🎉 22 项端到端业务、五颗糖连环品尝、自主翻页与一键重置测试全部通过！');

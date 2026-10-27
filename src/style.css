@@ -175,7 +175,10 @@ html, body {
   gap: 3px;
   max-width: 230px;
   transform: translate(-50%, -100%);
-  pointer-events: none;
+  pointer-events: auto;
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
   transition: opacity 0.2s ease, transform 0.2s cubic-bezier(0.18, 0.89, 0.32, 1.28);
 }
 

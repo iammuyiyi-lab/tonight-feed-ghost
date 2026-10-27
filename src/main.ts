@@ -283,6 +283,24 @@ class GameApp {
       });
     }
 
+    // Ghost Speech Bubble Click to advance dialogue or page
+    this.ghostSpeechBubble.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (this.director.currentScene === 'C02' && this.director.c02SelectedCandy) {
+        this.director.nextC02DialogueStep();
+      } else if (this.director.currentScene === 'C01') {
+        if (!this.director.c01SignTapped) {
+          this.director.tapC01();
+          this.renderControlsForScene('C01');
+        } else {
+          this.audio.playSfx('pageFlip');
+          this.director.goToScene('C02');
+        }
+      } else if (this.director.currentScene === 'C03' && this.director.c03Finished) {
+        this.director.advanceFromC03();
+      }
+    });
+
     // Pause on visibility change
     document.addEventListener('visibilitychange', () => {
       if (document.hidden) {
@@ -484,8 +502,7 @@ class GameApp {
         return;
       } else if (s === 'C02') {
         if (this.director.c02SelectedCandy) {
-          this.audio.playSfx('pageFlip');
-          this.director.goToScene('C03');
+          this.director.nextC02DialogueStep();
           return;
         }
       } else if (s === 'C03') {
@@ -542,8 +559,7 @@ class GameApp {
       return;
     }
     if (s === 'C02' && this.director.c02SelectedCandy) {
-      this.audio.playSfx('pageFlip');
-      this.director.goToScene('C03');
+      this.director.nextC02DialogueStep();
       return;
     }
     if (s === 'C03' && this.director.c03Finished) {
@@ -689,25 +705,30 @@ class GameApp {
         const currentStep = Math.min(5, this.director.eatenCandiesInRun.length);
 
         if (this.director.c02SelectedCandy) {
+          const type = this.director.c02SelectedCandy;
+          const meta = CANDIES[type];
+          const steps = this.director.getC02DialogueSteps(type);
+          const currentStepIdx = this.director.c02DialogueStep;
+          const currentStepData = steps[currentStepIdx] || steps[0];
+
           const banner = document.createElement('div');
           banner.className = 'c02-status-banner';
           banner.innerHTML = `
-            <div class="banner-title">第 ${currentStep} / 5 幕 · 品尝完毕</div>
-            <div class="banner-sub">夜色正在纸页上发酵……</div>
+            <div class="banner-title">第 ${currentStep} / 5 幕 · ${meta.name} 专属对白</div>
+            <div class="banner-sub">点击下方按钮推进幽灵台词 (${currentStepIdx + 1} / ${steps.length})</div>
           `;
           this.bottomActionRow.appendChild(banner);
 
-          const nextBtn = document.createElement('button');
-          nextBtn.className = 'paper-btn accent';
-          nextBtn.style.width = '100%';
-          nextBtn.style.padding = '12px 16px';
-          nextBtn.style.fontSize = '15px';
-          nextBtn.innerText = '翻页 · 查看小小后遗症 🍂 →';
-          nextBtn.onclick = () => {
-            this.audio.playSfx('pageFlip');
-            this.director.goToScene('C03');
+          const stepBtn = document.createElement('button');
+          stepBtn.className = 'paper-btn accent';
+          stepBtn.style.width = '100%';
+          stepBtn.style.padding = '12px 16px';
+          stepBtn.style.fontSize = '15px';
+          stepBtn.innerText = currentStepData.buttonLabel;
+          stepBtn.onclick = () => {
+            this.director.nextC02DialogueStep();
           };
-          this.bottomActionRow.appendChild(nextBtn);
+          this.bottomActionRow.appendChild(stepBtn);
           break;
         }
 

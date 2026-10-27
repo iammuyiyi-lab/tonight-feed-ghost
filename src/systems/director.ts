@@ -92,6 +92,7 @@ export class SceneDirector {
   };
   public c01SignTapped: boolean = false;
   public c02SelectedCandy: CandyType | null = null;
+  public c02DialogueStep: number = 0;
   public c03Finished: boolean = false;
   public c03ChosenDream: string | null = null;
   public c04Flipped: boolean = false;
@@ -153,8 +154,8 @@ export class SceneDirector {
     }, duration * 1000);
   }
 
-  // Real-time Ghost Speech Bubble (Follows Ghost directly on canvas)
-  public setGhostSpeech(text: string | null, autoDismissSeconds?: number): void {
+  // Real-time Ghost Speech Bubble (Follows Ghost directly on canvas, zero timers)
+  public setGhostSpeech(text: string | null): void {
     if (this.ghostSpeechTimer !== null) {
       clearTimeout(this.ghostSpeechTimer);
       this.ghostSpeechTimer = null;
@@ -162,15 +163,6 @@ export class SceneDirector {
     this.ghostSpeech = text;
     if (this.onGhostSpeechUpdated) {
       this.onGhostSpeechUpdated(text);
-    }
-    if (text && autoDismissSeconds && autoDismissSeconds > 0) {
-      this.ghostSpeechTimer = setTimeout(() => {
-        this.ghostSpeech = null;
-        if (this.onGhostSpeechUpdated) {
-          this.onGhostSpeechUpdated(null);
-        }
-        this.ghostSpeechTimer = null;
-      }, autoDismissSeconds * 1000);
     }
   }
 
@@ -317,6 +309,7 @@ export class SceneDirector {
     this.p04SelectedQuote = '有些夜晚并不特别。有人替它多留了一颗糖。';
     this.c01SignTapped = false;
     this.c02SelectedCandy = null;
+    this.c02DialogueStep = 0;
     this.c03Finished = false;
     this.c03ChosenDream = null;
     this.c04Flipped = false;
@@ -411,6 +404,7 @@ export class SceneDirector {
         this.ghost.setAction('idle');
         this.ghost.form = 'default';
         this.c02SelectedCandy = null;
+        this.c02DialogueStep = 0;
         this.currentPhase = 'interactive';
         const progressCount = Math.min(4, this.eatenCandiesInRun.length);
         const stepNote = CHAPTER_SCRIPTS.C02.stepNotes[progressCount] || CHAPTER_SCRIPTS.C02.stepNotes[0];
@@ -843,12 +837,73 @@ export class SceneDirector {
   }
 
   // --- Chapter 1 & V2 Feeding Logic ---
+  public getC02DialogueSteps(type: CandyType): Array<{ ghostSpeech: string; guideText: string; buttonLabel: string }> {
+    const candyResp = CANDY_RESPONSES[type] || CANDY_RESPONSES.pumpkin;
+    const firstLine = candyResp.firstDialogue[0] || '我好像成熟了。';
+    const secondLine = candyResp.firstDialogue[1] || '但只是植物学意义上的。';
+    const abLines = (CHAPTER_SCRIPTS.C02.abnormality as any)[type] || [
+      '等一下，这颗糖有一点副作用。',
+      '说明书早就过期了。',
+    ];
+    const abLine = abLines.join(' ');
+
+    const guides: Record<string, [string, string, string]> = {
+      pumpkin: [
+        '半糖品尝了一口南瓜糖，身体微微变圆。',
+        '半糖低头看了看自己，似乎察觉到了一点异样。',
+        '秋意在纸页上徐徐发酵，准备翻向下一页。',
+      ],
+      milk: [
+        '奶香在纸页间漫开，半糖的身体变得半透明。',
+        '腹部浮现出几颗小珍珠，留下了未尽的留白。',
+        '红茶与珍珠正在杯底沉淀，准备翻向下一页。',
+      ],
+      star: [
+        '微光在纸面上泛起，一滴墨水落在了半糖头顶。',
+        '空白的诗页在它身边悄然浮起。',
+        '字句即将变成今晚的押韵，准备翻向下一页。',
+      ],
+      blackSugar: [
+        '灯光忽然有了胶片的颗粒感，像一出黑白默片。',
+        '半糖换上了一副严肃认真的默片神情。',
+        '老胶卷在夜色里轻声转动，准备翻向下一页。',
+      ],
+      cloud: [
+        '周围的重力悄悄减退，半糖开始向半空漂浮。',
+        '一顶睡帽从纸页上方轻轻飘落。',
+        '梦境在现实边缘轻轻降落，准备翻向下一页。',
+      ],
+    };
+
+    const candyGuides = guides[type] || guides.pumpkin;
+
+    return [
+      {
+        ghostSpeech: firstLine,
+        guideText: candyGuides[0],
+        buttonLabel: '接着说 💬 (1/3)',
+      },
+      {
+        ghostSpeech: secondLine,
+        guideText: candyGuides[1],
+        buttonLabel: '查看身体异变 🍂 (2/3)',
+      },
+      {
+        ghostSpeech: abLine,
+        guideText: candyGuides[2],
+        buttonLabel: '翻页 · 查看小小后遗症 🍂 → (3/3)',
+      },
+    ];
+  }
+
   public feedCandyInC02(type: CandyType): { success: boolean; comment: string } {
     if (this.currentPhase !== 'interactive') {
       return { success: false, comment: '' };
     }
-    this.currentPhase = 'resolving';
+    this.currentPhase = 'interactive';
     this.c02SelectedCandy = type;
+    this.c02DialogueStep = 0;
+
     const state = this.persistence.getState();
     state.totalCandy++;
     state.feedCounts[type] = (state.feedCounts[type] || 0) + 1;
@@ -872,27 +927,41 @@ export class SceneDirector {
     const sfxName = (candyResp.soundId as any) || 'swallow';
     this.audio.playSfx(sfxName);
 
-    // Poetic ghost dialogue: combine initial reaction with abnormality reflection
-    const comment = candyResp.firstDialogue[0];
-    const initialSpeech = candyResp.firstDialogue.join(' ');
-    const abLines = (CHAPTER_SCRIPTS.C02.abnormality as any)[type] || [
-      '等一下，这颗糖有一点副作用。',
-      '说明书早就过期了。',
-    ];
-    const abSpeech = abLines.join(' ');
-    const fullSpeech = `${initialSpeech} ${abSpeech}`;
-
-    this.ghost.targetLookY = 0.85;
-    this.setGuide('糖分在纸页上徐徐化开，唤醒了一段夜色。点击下方翻页继续品读。', 'hint');
-    this.setGhostSpeech(fullSpeech);
-
-    // Keep interactive phase so player can leisurely read and click to advance
-    this.currentPhase = 'interactive';
+    // Apply Step 0 dialogue
+    const steps = this.getC02DialogueSteps(type);
+    const step0 = steps[0];
+    this.ghost.targetLookY = 0;
+    this.setGhostSpeech(step0.ghostSpeech);
+    this.setGuide(step0.guideText, 'narration');
 
     if (this.onActionControlsUpdated) {
       this.onActionControlsUpdated();
     }
-    return { success: true, comment };
+    return { success: true, comment: step0.ghostSpeech };
+  }
+
+  public nextC02DialogueStep(): boolean {
+    if (!this.c02SelectedCandy) return false;
+    const steps = this.getC02DialogueSteps(this.c02SelectedCandy);
+    if (this.c02DialogueStep < steps.length - 1) {
+      this.c02DialogueStep++;
+      const current = steps[this.c02DialogueStep];
+      this.audio.playSfx('boop');
+      if (this.c02DialogueStep === 2) {
+        this.ghost.targetLookY = 0.85;
+      }
+      this.setGhostSpeech(current.ghostSpeech);
+      this.setGuide(current.guideText, 'narration');
+      if (this.onActionControlsUpdated) {
+        this.onActionControlsUpdated();
+      }
+      return true;
+    } else {
+      // Reached last step, advance to C03!
+      this.audio.playSfx('pageFlip');
+      this.goToScene('C03');
+      return true;
+    }
   }
 
   public tapC01(): void {
