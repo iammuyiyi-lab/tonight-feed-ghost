@@ -264,3 +264,73 @@ export const SCENE_SCRIPTS = {
     btnBack: '合上心事',
   },
 };
+
+export const V2_SCRIPTS = {
+  P00: {
+    title: '今夜宜喂鬼',
+    subtitle: '深夜读物，建议配糖',
+    marginal: '十月的最后几页，总有些小东西不愿归档。',
+    btnOpen: '翻开今晚',
+    moonTap: '月亮正在掉字。',
+  },
+  P01: {
+    signFront: '不给糖就捣蛋。',
+    signBack: '如果方便的话。',
+    poke: '别戳。我现在属于易碎文学。',
+    fedLine: '嗯。恐吓暂停，先消化一下。',
+    btnNext: '继续翻页 →',
+  },
+  P02: {
+    forecast: '天气预报：今晚局部地区有糖。伴随少量荒谬。',
+    ghostLine: '我没有带伞，但带了胃。',
+    btnEarlyExit: '收起雨伞 / 翻页 →',
+    btnNext: '翻开下一页 →',
+    burp: '（小小的嗝）空气里还留着一张糖纸。',
+    callouts: {
+      note: '空气里有点不负责的文学。',
+      bookmark: '这大概是某本书逃出来的骨头。',
+      sock: '天气预报没有说这个。',
+      streak: '我今天的运气有具体的形状。',
+    },
+  },
+  P03: {
+    header: '本鬼临时决定写作',
+    ghostLine: '糖分过高，我开始有点文学了。',
+    marginal: '请帮它挑三个词。它本人没有词汇储备。',
+    finished: '我写好了。文学应当负责支付一颗糖。',
+    pokeEgg: '本诗没有经费，请勿打赏。',
+    btnFoldPoem: '把诗折起来 →',
+  },
+  P04: {
+    title: '幽灵账本',
+    marginal: '收糖：若干；还款能力：零',
+    ghostLines: [
+      '鬼也讲究礼尚往来。',
+      '我目前只有一张糖纸，一首废话诗，以及还算完整的诚意。',
+    ],
+    quotes: [
+      '有些夜晚并不特别。有人替它多留了一颗糖。',
+      '月亮没说什么。它只是一直亮着。',
+      '我收下了一颗糖，决定把这件小事认真对待。',
+    ],
+    btnWriteBack: '写在背面 →',
+  },
+  P05: {
+    scareLines: [
+      '按规矩，我该吓你一跳。',
+      '哇——',
+      '算了。这个比较擅长。',
+      '这颗不算游戏奖励。',
+      '是额外留给你的。',
+      '万圣节快乐。愿你也有一点毫无理由的开心。',
+    ],
+    cardTitle: '万圣节快乐持有证',
+    certText: '兹证明：你在一个普通的夜晚，认真喂饱了一只不太称职的鬼。',
+    validity: '有效期：直到月亮忘记路。',
+    stampDate: 'MIDNIGHT / 31 OCT 2026',
+    stampSeal: '半糖 · 签收',
+    btnSaveCard: '收下这张糖纸',
+    btnFreeFeed: '再喂一颗',
+    btnEndBook: '合上这本书',
+  },
+};

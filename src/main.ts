@@ -7,7 +7,7 @@ import { HandbookView } from './views/handbookView';
 import { EndingCardRenderer } from './views/endingCardView';
 import { QADevView } from './views/qaView';
 import { THEME_COLORS, CANDIES, FORMS_META } from './config/constants';
-import { SCENE_SCRIPTS } from './config/dialogues';
+import { SCENE_SCRIPTS, V2_SCRIPTS } from './config/dialogues';
 import { CANDY_WRAPPERS } from './config/collectibles';
 import { CandyType, SceneId, GhostFormId } from './types';
 import { PumpkinFaceType } from './games/pumpkinGame';
@@ -36,6 +36,7 @@ class GameApp {
   private modalOverlay: HTMLElement;
   private settingsBtn: HTMLElement;
   private handbookBtn: HTMLElement;
+  private transientBubbleEl: HTMLElement;
 
   // Dragging candy state
   private draggingCandy: CandyType | null = null;
@@ -43,10 +44,10 @@ class GameApp {
   private candyDragY: number = 0;
   private candyTeaseTracker: { approached: boolean; count: number } = { approached: false, count: 0 };
 
-  // S04 Trial Candy screen position
+  // S04 / P01 Trial Candy screen position
   private s04CandyPos = { x: 180, y: 380 };
 
-  // S02 Moon Long-Press state
+  // S02 / P00 Moon state
   private moonX: number = 0;
   private moonY: number = 0;
   private moonRadius: number = 32;
@@ -77,6 +78,7 @@ class GameApp {
     this.modalOverlay = document.getElementById('modalOverlay')!;
     this.settingsBtn = document.getElementById('settingsBtn')!;
     this.handbookBtn = document.getElementById('handbookBtn')!;
+    this.transientBubbleEl = document.getElementById('transientBubble') || document.createElement('div');
 
     this.input = new InputRouter(this.stageContainer);
 
@@ -113,6 +115,21 @@ class GameApp {
       this.skipHintEl.style.opacity = isDone ? '0' : '0.7';
     };
 
+    // Decoupled transient bubble hook (P0-02)
+    this.director.onTransientBubbleUpdated = (text) => {
+      if (text) {
+        this.transientBubbleEl.innerText = text;
+        this.transientBubbleEl.classList.add('visible');
+      } else {
+        this.transientBubbleEl.classList.remove('visible');
+      }
+    };
+
+    // Action controls updated hook
+    this.director.onActionControlsUpdated = () => {
+      this.renderControlsForScene(this.director.currentScene);
+    };
+
     // P0-02: Check saved checkpoint on startup
     this.handleStartupCheckpoint();
 
@@ -138,18 +155,19 @@ class GameApp {
   // P0-02: Proper startup recovery from checkpoint without permanently restarting prologue
   private handleStartupCheckpoint(): void {
     const state = this.persistence.getState();
-    const checkpoint = state.lastSafeCheckpoint || 'S01';
+    const checkpoint = state.lastSafeCheckpoint || 'P00';
 
-    // If first time or checkpoint is S01, start at S00
-    if (checkpoint === 'S01' && !state.firstRunCompleted) {
-      this.director.goToScene('S00');
+    if (!state.firstRunCompleted) {
+      if (['P00', 'P01', 'P02', 'P03', 'P04', 'P05'].includes(checkpoint)) {
+        this.director.goToScene(checkpoint);
+      } else {
+        this.director.goToScene('P00');
+      }
       return;
     }
 
-    // Stay at S00 to offer continuing or restarting
-    this.director.currentScene = 'S00';
-    this.updateHeader('S00');
-    this.renderControlsForScene('S00');
+    // Returning user after first completion: start at P00
+    this.director.goToScene('P00');
   }
 
   private resizeCanvas(): void {
@@ -167,16 +185,17 @@ class GameApp {
     this.ghost.x = this.width / 2;
     this.ghost.y = this.height * 0.52;
 
-    // Adjust candy rain rail
+    // Adjust candy rain rail (P0-01: match bottom rail physics)
     this.director.candyRain.stageWidth = this.width;
     this.director.candyRain.stageHeight = this.height;
+    this.director.candyRain.ghostY = this.height - 110;
     this.director.candyRain.ghostX = this.ghost.x;
 
-    // Moon position in S01 / S02
+    // Moon position in P00 / S01 / S02
     this.moonX = this.width * 0.72;
     this.moonY = this.height * 0.22;
 
-    // S04 Trial Candy position
+    // P01 / S04 Trial Candy position
     this.s04CandyPos = { x: this.width / 2, y: this.height * 0.75 };
   }
 
@@ -185,6 +204,12 @@ class GameApp {
     this.subtitleContainer.addEventListener('click', () => {
       this.director.skipOrNextDialogue();
     });
+
+    // P0-02: Stop pointer and click event propagation from controls/overlays to stage container
+    this.minigameOverlay.addEventListener('pointerdown', (e) => e.stopPropagation());
+    this.minigameOverlay.addEventListener('click', (e) => e.stopPropagation());
+    this.bottomActionRow.addEventListener('pointerdown', (e) => e.stopPropagation());
+    this.bottomActionRow.addEventListener('click', (e) => e.stopPropagation());
 
     // Settings Modal
     this.settingsBtn.addEventListener('click', () => {
@@ -212,7 +237,7 @@ class GameApp {
       this.ghost.setLookAt(x, y, this.ghost.x, this.ghost.y);
 
       // Handle candy rain horizontal ghost dragging
-      if (['S10', 'S11', 'S12'].includes(this.director.currentScene) && this.input.pointer.isDown) {
+      if (['P02', 'S10', 'S11', 'S12'].includes(this.director.currentScene) && this.input.pointer.isDown) {
         this.director.candyRain.ghostX = Math.max(50, Math.min(this.width - 50, x));
         this.ghost.x = this.director.candyRain.ghostX;
       }
@@ -241,9 +266,9 @@ class GameApp {
       }
     };
 
-    // Drag start on S04 trial candy
+    // Drag start on S04 / P01 trial candy
     this.input.onDragStart = (x, y) => {
-      if (this.director.currentScene === 'S04') {
+      if ((this.director.currentScene === 'P01' && !this.director.p01Fed) || this.director.currentScene === 'S04') {
         const dx = x - this.s04CandyPos.x;
         const dy = y - this.s04CandyPos.y;
         if (Math.sqrt(dx * dx + dy * dy) < 45) {
@@ -280,7 +305,14 @@ class GameApp {
 
         if (dist < 72) {
           // Suction and feed!
-          if (this.director.currentScene === 'S04') {
+          if (this.director.currentScene === 'P01') {
+            this.ghost.setAction('eat', 0.6);
+            this.audio.playSfx('swallow');
+            this.director.p01Fed = true;
+            this.director.feedCandy('pumpkin');
+            this.director.setSubtitle(V2_SCRIPTS.P01.fedLine);
+            this.renderControlsForScene('P01');
+          } else if (this.director.currentScene === 'S04') {
             this.ghost.setAction('eat', 0.6);
             this.audio.playSfx('swallow');
             this.director.goToScene('S05');
@@ -293,7 +325,10 @@ class GameApp {
         } else {
           // Dropped on empty floor
           this.audio.playSfx('boop');
-          if (this.director.currentScene === 'S04') {
+          if (this.director.currentScene === 'P01') {
+            this.ghost.setAction('angry', 1.0);
+            this.director.showTransientBubble('拖偏了。我现在比较脆弱。');
+          } else if (this.director.currentScene === 'S04') {
             this.ghost.setAction('angry', 1.0);
             this.director.showDialogueQueue([SCENE_SCRIPTS.S04.wrongDrop]);
           }
@@ -316,21 +351,37 @@ class GameApp {
       const { pokeCount5In5s } = this.ghost.poke();
 
       if (pokeCount5In5s) {
-        this.director.showDialogueQueue(['这一章我有意见。']);
+        // P0-02: Decoupled transient bubble prevents deleting pending scene transition callbacks
+        this.director.showTransientBubble('这一章我有意见。');
         this.persistence.discoverEasterEgg('EGG01');
       } else {
-        if (s === 'S03') {
-          this.director.showDialogueQueue(['我们还没熟到可以戳脸。']);
+        if (s === 'P01') {
+          this.director.showTransientBubble(V2_SCRIPTS.P01.poke);
+        } else if (s === 'P03') {
+          this.director.showTransientBubble(V2_SCRIPTS.P03.pokeEgg);
+        } else if (s === 'S03') {
+          this.director.showTransientBubble('我们还没熟到可以戳脸。');
         } else if (s === 'S04') {
           // Flip cardboard sign
           this.ghost.isNoteFlipped = !this.ghost.isNoteFlipped;
         } else if (s === 'S27' && this.ghost.action === 'sleep') {
           // Poked sleeping ghost (ordinary wake)
           this.ghost.setAction('idle');
-          this.director.showDialogueQueue(['……睡醒了。']);
+          this.director.showTransientBubble('……睡醒了。');
         }
       }
       return;
+    }
+
+    // P00: Tap moon drops ink specks
+    if (s === 'P00') {
+      const dMoonX = x - this.moonX;
+      const dMoonY = y - this.moonY;
+      if (Math.sqrt(dMoonX * dMoonX + dMoonY * dMoonY) < this.moonRadius * 1.5) {
+        this.audio.playSfx('twinkle');
+        this.director.showTransientBubble(V2_SCRIPTS.P00.moonTap);
+        return;
+      }
     }
 
     // S02: Tap on bulged page corner
@@ -385,7 +436,19 @@ class GameApp {
   // --- Header Updating ---
   private updateHeader(scene: SceneId): void {
     let indicator = 'Ⅰ / Ⅴ';
-    if (['S00', 'S01', 'S02', 'S03', 'S04', 'S05'].includes(scene)) {
+    if (scene === 'P00') {
+      indicator = '扉页 · 今晚有鬼借宿';
+    } else if (scene === 'P01') {
+      indicator = '第一页 · 不合格的恐吓者';
+    } else if (scene === 'P02') {
+      indicator = '第二页 · 糖果气象报告';
+    } else if (scene === 'P03') {
+      indicator = '第三页 · 一首没用的诗';
+    } else if (scene === 'P04') {
+      indicator = '第四页 · 幽灵账本';
+    } else if (scene === 'P05') {
+      indicator = '尾页 · 多出来的一颗糖';
+    } else if (['S00', 'S01', 'S02', 'S03', 'S04', 'S05'].includes(scene)) {
       indicator = '序章 · 掉落';
     } else if (['S06', 'S07', 'S08'].includes(scene)) {
       indicator = 'Ⅰ / Ⅴ · 食谱';
@@ -412,6 +475,196 @@ class GameApp {
     const state = this.persistence.getState();
 
     switch (scene) {
+      case 'P00': {
+        const startBtn = document.createElement('button');
+        startBtn.className = 'paper-btn accent';
+        startBtn.innerText = '翻开今晚';
+        startBtn.onclick = async () => {
+          await this.audio.unlock();
+          this.audio.playSfx('pageFlip');
+          this.director.goToScene('P01');
+        };
+        this.bottomActionRow.appendChild(startBtn);
+
+        if (state.firstRunCompleted) {
+          const freeModeBtn = document.createElement('button');
+          freeModeBtn.className = 'paper-btn secondary';
+          freeModeBtn.innerText = '半糖的夜班 (自由模式)';
+          freeModeBtn.onclick = async () => {
+            await this.audio.unlock();
+            this.director.goToScene('S27');
+          };
+          this.bottomActionRow.appendChild(freeModeBtn);
+        }
+        break;
+      }
+
+      case 'P01': {
+        if (this.director.p01Fed) {
+          const nextBtn = document.createElement('button');
+          nextBtn.className = 'paper-btn accent';
+          nextBtn.innerText = '继续翻页 →';
+          nextBtn.onclick = () => {
+            this.audio.playSfx('pageFlip');
+            this.director.goToScene('P02');
+          };
+          this.bottomActionRow.appendChild(nextBtn);
+        } else {
+          const tapFeedBtn = document.createElement('button');
+          tapFeedBtn.className = 'paper-btn secondary';
+          tapFeedBtn.innerText = '喂它南瓜糖';
+          tapFeedBtn.onclick = () => {
+            this.audio.playSfx('swallow');
+            this.ghost.setAction('eat', 0.6);
+            this.director.p01Fed = true;
+            this.director.feedCandy('pumpkin');
+            this.director.setSubtitle(V2_SCRIPTS.P01.fedLine);
+            this.renderControlsForScene('P01');
+          };
+          this.bottomActionRow.appendChild(tapFeedBtn);
+        }
+        break;
+      }
+
+      case 'P02': {
+        if (this.director.candyRain.caughtCandyCount >= 3) {
+          const earlyExitBtn = document.createElement('button');
+          earlyExitBtn.className = 'paper-btn secondary';
+          earlyExitBtn.innerText = '收起雨伞 / 翻页 →';
+          earlyExitBtn.onclick = () => {
+            this.director.candyRain.completeRainEarly();
+          };
+          this.bottomActionRow.appendChild(earlyExitBtn);
+        }
+        break;
+      }
+
+      case 'P03': {
+        if (this.director.poetGame.step === 'selectWords') {
+          const container = document.createElement('div');
+          container.className = 'poet-rows-container';
+
+          const rows = [
+            ['月亮', '路灯', '南瓜', '旧窗'],
+            ['糖纸', '鞋带', '晚风', '书签'],
+            ['打嗝', '漂流', '保密', '发芽'],
+          ];
+
+          rows.forEach((r, rowIdx) => {
+            const rowEl = document.createElement('div');
+            rowEl.className = 'poet-row';
+            r.forEach((word) => {
+              const chip = document.createElement('button');
+              chip.className = `poet-word-chip ${this.director.poetGame.selectedWords[rowIdx] === word ? 'selected' : ''}`;
+              chip.innerText = word;
+              chip.onclick = (e) => {
+                e.stopPropagation();
+                this.director.poetGame.pickWord(rowIdx, word);
+                this.renderControlsForScene('P03');
+              };
+              rowEl.appendChild(chip);
+            });
+            container.appendChild(rowEl);
+          });
+          this.minigameOverlay.appendChild(container);
+        } else if (this.director.poetGame.step === 'recite') {
+          const poem = this.director.poetGame.generatedPoem;
+          if (poem) {
+            const card = document.createElement('div');
+            card.className = 'poet-manuscript-card';
+            card.innerHTML = `
+              <div class="poet-manuscript-title">${poem.title}</div>
+              <div class="poet-manuscript-line">${poem.lines[0]}</div>
+              <div class="poet-manuscript-line">${poem.lines[1]}</div>
+              <div class="poet-manuscript-line">${poem.lines[2]}</div>
+            `;
+            this.minigameOverlay.appendChild(card);
+          }
+          const foldBtn = document.createElement('button');
+          foldBtn.className = 'paper-btn accent';
+          foldBtn.id = 'foldPoemBtn';
+          foldBtn.innerText = '把诗折起来 →';
+          foldBtn.onclick = (e) => {
+            e.stopPropagation();
+            this.audio.playSfx('pageFlip');
+            this.director.goToScene('P04');
+          };
+          this.bottomActionRow.appendChild(foldBtn);
+        }
+        break;
+      }
+
+      case 'P04': {
+        const quotesContainer = document.createElement('div');
+        quotesContainer.className = 'quote-selector-container';
+
+        const quotes = V2_SCRIPTS.P04.quotes;
+        quotes.forEach((q) => {
+          const quoteCard = document.createElement('div');
+          quoteCard.className = `quote-card ${this.director.p04SelectedQuote === q ? 'selected' : ''}`;
+          quoteCard.innerText = `“${q}”`;
+          quoteCard.onclick = (e) => {
+            e.stopPropagation();
+            this.director.p04SelectedQuote = q;
+            this.audio.playSfx('boop');
+            this.renderControlsForScene('P04');
+          };
+          quotesContainer.appendChild(quoteCard);
+        });
+        this.minigameOverlay.appendChild(quotesContainer);
+
+        const writeBackBtn = document.createElement('button');
+        writeBackBtn.className = 'paper-btn accent';
+        writeBackBtn.innerText = '写在背面 →';
+        writeBackBtn.onclick = () => {
+          this.audio.playSfx('pageFlip');
+          this.director.goToScene('P05');
+        };
+        this.bottomActionRow.appendChild(writeBackBtn);
+        break;
+      }
+
+      case 'P05': {
+        state.firstRunCompleted = true;
+        state.chosenQuote = this.director.p04SelectedQuote;
+        this.persistence.unlockWrapper('11');
+        this.persistence.save();
+
+        const saveBtn = document.createElement('button');
+        saveBtn.className = 'paper-btn accent';
+        saveBtn.innerText = '收下这张糖纸';
+        saveBtn.onclick = () => {
+          const dataUrl = EndingCardRenderer.renderCardToDataUrl(
+            state,
+            '半糖的饲养员',
+            '愿你拥有许多不必解释的快乐',
+            this.director.p04SelectedQuote
+          );
+          this.showCardPreviewModal(dataUrl);
+        };
+
+        const freeModeBtn = document.createElement('button');
+        freeModeBtn.className = 'paper-btn secondary';
+        freeModeBtn.innerText = '再喂一颗';
+        freeModeBtn.onclick = () => {
+          this.audio.playSfx('pageFlip');
+          this.director.goToScene('S27');
+        };
+
+        const closeBookBtn = document.createElement('button');
+        closeBookBtn.className = 'paper-btn secondary';
+        closeBookBtn.innerText = '合上这本书';
+        closeBookBtn.onclick = () => {
+          this.audio.playSfx('pageFlip');
+          this.director.goToScene('P00');
+        };
+
+        this.bottomActionRow.appendChild(saveBtn);
+        this.bottomActionRow.appendChild(freeModeBtn);
+        this.bottomActionRow.appendChild(closeBookBtn);
+        break;
+      }
+
       case 'S00': {
         const checkpoint = state.lastSafeCheckpoint || 'S01';
         const hasProgress = checkpoint !== 'S01';
@@ -728,6 +981,28 @@ class GameApp {
             container.appendChild(rowEl);
           });
           this.minigameOverlay.appendChild(container);
+        } else if (this.director.poetGame.step === 'recite') {
+          const poem = this.director.poetGame.generatedPoem;
+          if (poem) {
+            const card = document.createElement('div');
+            card.className = 'poet-manuscript-card';
+            card.innerHTML = `
+              <div class="poet-manuscript-title">${poem.title}</div>
+              <div class="poet-manuscript-line">${poem.lines[0]}</div>
+              <div class="poet-manuscript-line">${poem.lines[1]}</div>
+              <div class="poet-manuscript-line">${poem.lines[2]}</div>
+            `;
+            this.minigameOverlay.appendChild(card);
+          }
+          const nextBtn = document.createElement('button');
+          nextBtn.className = 'paper-btn accent';
+          nextBtn.innerText = '收起这首没用的诗 →';
+          nextBtn.onclick = (e) => {
+            e.stopPropagation();
+            this.audio.playSfx('pageFlip');
+            this.director.goToScene('S20');
+          };
+          this.bottomActionRow.appendChild(nextBtn);
         }
         break;
       }
@@ -1287,17 +1562,22 @@ class GameApp {
     this.renderBackground(ctx, s);
 
     // 2. Minigame specific drawings
-    if (['S10', 'S11', 'S12'].includes(s)) {
+    if (['P02', 'S10', 'S11', 'S12'].includes(s)) {
       this.director.candyRain.render(ctx);
     }
 
     // 3. Render Half-Candy (GhostActor)
-    if (s !== 'S00' && s !== 'S01' && s !== 'S02') {
-      this.ghost.render(ctx, this.ghost.x, this.ghost.y);
+    if (s !== 'P00' && s !== 'S00' && s !== 'S01' && s !== 'S02') {
+      if (['P02', 'S10', 'S11', 'S12'].includes(s)) {
+        // P0-01: Render ghost exactly at the candy rain lower rail to match collision bounds
+        this.ghost.render(ctx, this.director.candyRain.ghostX, this.director.candyRain.ghostY);
+      } else {
+        this.ghost.render(ctx, this.ghost.x, this.ghost.y);
+      }
     }
 
-    // 4. In S04: Render draggable Trial Candy on table if not dragging
-    if (s === 'S04' && !this.draggingCandy) {
+    // 4. In P01 / S04: Render draggable Trial Candy on table if not dragging
+    if (((s === 'P01' && !this.director.p01Fed) || s === 'S04') && !this.draggingCandy) {
       this.renderTrialCandy(ctx, this.s04CandyPos.x, this.s04CandyPos.y);
     }
 
@@ -1310,7 +1590,42 @@ class GameApp {
   private renderBackground(ctx: CanvasRenderingContext2D, scene: SceneId): void {
     ctx.save();
 
-    if (scene === 'S00') {
+    if (scene === 'P00') {
+      // Midnight book cover for V2 literary edition
+      ctx.fillStyle = '#1F2942';
+      ctx.fillRect(0, 0, this.width, this.height);
+
+      // Aged paper inner frame
+      ctx.strokeStyle = 'rgba(247, 233, 210, 0.2)';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(16, 16, this.width - 32, this.height - 32);
+
+      // Slanted silver/warm crescent moon
+      const breath = this.ghost.reduceMotion ? 0 : Math.sin(performance.now() * 0.002) * 2;
+      ctx.beginPath();
+      ctx.arc(this.moonX, this.moonY, 36 + breath, 0, Math.PI * 2);
+      ctx.fillStyle = '#ED9A55';
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(this.moonX + 10, this.moonY - 6, 32 + breath, 0, Math.PI * 2);
+      ctx.fillStyle = '#1F2942';
+      ctx.fill();
+
+      // Title 《今夜宜喂鬼》
+      ctx.fillStyle = '#F7E9D2';
+      ctx.font = 'bold 30px "PingFang SC", "Microsoft YaHei", "Noto Serif SC", serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('《今夜宜喂鬼》', this.width / 2, this.height * 0.48);
+
+      ctx.font = '15px "PingFang SC", "Microsoft YaHei", sans-serif';
+      ctx.fillStyle = '#ED9A55';
+      ctx.fillText('深夜读物，建议配糖', this.width / 2, this.height * 0.55);
+
+      // Marginal print
+      ctx.font = 'italic 13px "PingFang SC", "Microsoft YaHei", serif';
+      ctx.fillStyle = 'rgba(247, 233, 210, 0.65)';
+      ctx.fillText('十月的最后几页，总有些小东西不愿归档。', this.width / 2, this.height * 0.68);
+    } else if (scene === 'S00') {
       // Print shop stamp page
       ctx.fillStyle = '#1F2942';
       ctx.fillRect(0, 0, this.width, this.height);
@@ -1364,7 +1679,7 @@ class GameApp {
       ctx.strokeStyle = THEME_COLORS.inkBrown;
       ctx.lineWidth = 2;
       ctx.stroke();
-    } else if (['S09', 'S10', 'S11', 'S12'].includes(scene)) {
+    } else if (['P02', 'S09', 'S10', 'S11', 'S12'].includes(scene)) {
       // Candy Rain Sky Horizon
       ctx.strokeStyle = 'rgba(71, 57, 47, 0.3)';
       ctx.lineWidth = 2;

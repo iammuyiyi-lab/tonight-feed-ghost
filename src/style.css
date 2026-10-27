@@ -312,6 +312,91 @@ html, body {
   pointer-events: auto;
 }
 
+/* Transient Speech Bubble */
+.transient-bubble {
+  position: absolute;
+  top: 76px;
+  left: 50%;
+  transform: translateX(-50%) translateY(-10px);
+  background: #FFFDF7;
+  border: 2px solid var(--color-ink-brown);
+  border-radius: 16px;
+  padding: 6px 14px;
+  font-size: 13px;
+  color: var(--color-ink-brown);
+  box-shadow: 2px 3px 0px rgba(71, 57, 47, 0.2);
+  z-index: 45;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.25s, transform 0.25s;
+  white-space: nowrap;
+}
+.transient-bubble.visible {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+/* Poet Manuscript Paper Sheet (P03) */
+.poet-manuscript-card {
+  width: 86%;
+  max-width: 320px;
+  background: #FFFDF7;
+  border: 2px solid var(--color-ink-brown);
+  border-radius: 8px;
+  padding: 16px;
+  box-shadow: 3px 4px 0px rgba(71, 57, 47, 0.25);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  text-align: left;
+  user-select: none;
+}
+.poet-manuscript-title {
+  font-size: 16px;
+  font-weight: bold;
+  color: var(--color-accent-red);
+  border-bottom: 1px dashed var(--color-ink-light);
+  padding-bottom: 6px;
+  text-align: center;
+}
+.poet-manuscript-line {
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--color-ink-brown);
+  font-style: italic;
+}
+
+/* Quote Selector Cards (P04) */
+.quote-selector-container {
+  width: 90%;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: center;
+}
+.quote-card {
+  width: 100%;
+  background: rgba(255, 253, 247, 0.92);
+  border: 2px dashed var(--color-ink-light);
+  border-radius: 8px;
+  padding: 12px 14px;
+  font-size: 14px;
+  line-height: 1.4;
+  color: var(--color-ink-brown);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+  text-align: center;
+}
+.quote-card.selected {
+  border-style: solid;
+  border-color: var(--color-accent-red);
+  background: #FFF8F4;
+  box-shadow: 2px 3px 0px var(--color-accent-red);
+  color: var(--color-ink-brown);
+  font-weight: 500;
+}
+
 /* Poet rows */
 .poet-rows-container {
   display: flex;

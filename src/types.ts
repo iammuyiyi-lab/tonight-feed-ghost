@@ -1,4 +1,10 @@
 export type SceneId =
+  | 'P00' // V2 Cover: Tonight a ghost stays over
+  | 'P01' // V2 Page 1: An unqualified scarer (feed 1 candy)
+  | 'P02' // V2 Page 2: Candy weather report (single wave)
+  | 'P03' // V2 Page 3: A useless poem (3 words -> poem)
+  | 'P04' // V2 Page 4: Ghost ledger (pick 1 of 3 quotes)
+  | 'P05' // V2 Epilogue: An extra candy left for you (certificate)
   | 'S00' // Loading / print shop
   | 'S01' // Cover
   | 'S02' // Page 1: moon hungry
@@ -72,6 +78,18 @@ export type GhostExpression =
   | 'soft'
   | 'surprised';
 
+export interface CatchBounds {
+  left: number;
+  right: number;
+  top: number;
+  bottom: number;
+  centerX: number;
+  centerY: number;
+  mouthX: number;
+  mouthY: number;
+  radius: number;
+}
+
 export type CandyType =
   | 'pumpkin'
   | 'milk'
@@ -142,9 +160,11 @@ export interface SaveState {
   easterEggs: string[]; // 'EGG01' - 'EGG15'
   gentleActs: GentleActs;
   lastEndingTitle?: string;
+  chosenQuote?: string;
   lastCardData?: {
     endingTitle: string;
     subNote: string;
+    chosenQuote?: string;
     favoriteCandy: CandyType;
     favoriteCandyName: string;
     mainForm: GhostFormId;

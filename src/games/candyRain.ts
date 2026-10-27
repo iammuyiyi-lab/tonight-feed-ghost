@@ -1,6 +1,7 @@
 import { CandyType } from '../types';
 import { THEME_COLORS, CANDIES } from '../config/constants';
 import { AudioDirector } from '../systems/audio';
+import { GhostActor } from '../systems/ghost';
 
 export interface FallingItem {
   id: number;
@@ -30,11 +31,19 @@ export class CandyRainGame {
   private spawnTimer: number = 0;
   private audio: AudioDirector;
 
-  // Ghost rail position
+  // Ghost Actor reference & collision rail
+  public ghostActor: GhostActor | null = null;
   public ghostX: number = 150;
+  public ghostY: number = 490;
   public ghostWidth: number = 90;
   public stageWidth: number = 360;
   public stageHeight: number = 600;
+
+  // Single-wave mode for 3-5 min literary story (P02)
+  public isSingleWave: boolean = false;
+  public totalItemsSpawned: number = 0;
+  public calloutCount: number = 0;
+  public static showDebugBounds: boolean = false;
 
   // Dialogue callout triggered during rain
   public currentCallout: string | null = null;
@@ -69,6 +78,9 @@ export class CandyRainGame {
     this.spawnTimer = 0.5;
     this.isPaused = false;
     this.isFinished = false;
+    this.isSingleWave = false;
+    this.totalItemsSpawned = 0;
+    this.calloutCount = 0;
     this.currentCallout = null;
     this.calloutTimer = 0;
     this.routeScoresEarned = {
@@ -78,6 +90,24 @@ export class CandyRainGame {
       movie: 0,
       sleepwalk: 0,
     };
+  }
+
+  // Single wave configuration for P02 (~35-45s)
+  public startSingleWaveMode(duration: number = 40): void {
+    this.resetEntireRainGame();
+    this.isSingleWave = true;
+    this.wave = 1;
+    this.waveTimeRemaining = duration;
+    this.spawnTimer = 0.6;
+  }
+
+  // Early advance when player caught at least 3 candies
+  public completeRainEarly(): void {
+    if (this.isFinished) return;
+    this.isFinished = true;
+    if (this.onGameComplete) {
+      this.onGameComplete(this.caughtCandyCount);
+    }
   }
 
   // Wave reset that preserves current run scores
@@ -110,14 +140,21 @@ export class CandyRainGame {
       this.spawnTimer = interval + Math.random() * 0.3;
     }
 
-    // Update positions and check collisions
-    const ghostCatchY = this.stageHeight - 110;
-    const ghostCatchBox = {
-      left: this.ghostX - this.ghostWidth * 0.55,
-      right: this.ghostX + this.ghostWidth * 0.55,
-      top: ghostCatchY - 30,
-      bottom: ghostCatchY + 40,
-    };
+    // Update positions and check collisions using GhostActor's actual screen bounds
+    this.ghostY = this.stageHeight - 110;
+    const bounds = this.ghostActor
+      ? this.ghostActor.getCatchBounds(this.ghostX, this.ghostY)
+      : {
+          left: this.ghostX - 50,
+          right: this.ghostX + 50,
+          top: this.ghostY - 102,
+          bottom: this.ghostY + 102,
+          centerX: this.ghostX,
+          centerY: this.ghostY,
+          mouthX: this.ghostX,
+          mouthY: this.ghostY - 14,
+          radius: 50,
+        };
 
     for (let i = this.items.length - 1; i >= 0; i--) {
       const item = this.items[i];
@@ -126,21 +163,22 @@ export class CandyRainGame {
         item.rotation += item.rotSpeed * dt;
       }
 
-      // Check collision with ghost
-      if (
-        !item.caught &&
-        item.y >= ghostCatchBox.top &&
-        item.y <= ghostCatchBox.bottom &&
-        item.x >= ghostCatchBox.left &&
-        item.x <= ghostCatchBox.right
-      ) {
+      // Exact collision with ghost upper body and mouth
+      const itemRadius = item.size * 0.5;
+      const inY = item.y + itemRadius >= bounds.top && item.y - itemRadius <= bounds.mouthY + 35;
+      const inX = item.x + itemRadius >= bounds.left && item.x - itemRadius <= bounds.right;
+
+      if (!item.caught && inY && inX) {
         item.caught = true;
+        if (this.ghostActor) {
+          this.ghostActor.setAction('eat', 0.35);
+        }
         this.handleCatch(item);
         this.items.splice(i, 1);
         continue;
       }
 
-      // Check floor miss
+      // Check floor miss (absorbed into page bottom)
       if (item.y > this.stageHeight + 30) {
         if (!item.caught) {
           this.consecutiveCatches = 0;
@@ -149,9 +187,14 @@ export class CandyRainGame {
       }
     }
 
-    // Check wave transition
+    // Check wave transition or single-wave finish
     if (this.waveTimeRemaining <= 0) {
-      if (this.wave < 3) {
+      if (this.isSingleWave) {
+        this.isFinished = true;
+        if (this.onGameComplete) {
+          this.onGameComplete(this.caughtCandyCount);
+        }
+      } else if (this.wave < 3) {
         const finishedWave = this.wave;
         this.wave++;
         this.waveTimeRemaining = 22;
@@ -172,14 +215,40 @@ export class CandyRainGame {
   }
 
   private spawnItem(): void {
-    const x = 30 + Math.random() * (this.stageWidth - 60);
-    const speed = (110 + this.wave * 20 + Math.random() * 30);
+    let x = 30 + Math.random() * (this.stageWidth - 60);
+    let speed = 110 + this.wave * 20 + Math.random() * 30;
     const rotSpeed = this.reduceMotion ? 0 : (Math.random() - 0.5) * 2.5;
 
     let type: FallingItem['type'] = 'candy';
     let candyType: CandyType = 'pumpkin';
 
-    if (this.wave === 1) {
+    if (this.isSingleWave) {
+      // P02 single-wave pacing:
+      // First 3 items are guaranteed easy candies dropped near ghost for immediate success!
+      if (this.totalItemsSpawned < 3) {
+        x = Math.max(40, Math.min(this.stageWidth - 40, this.ghostX + (Math.random() - 0.5) * 50));
+        speed = 115;
+        const easyTypes: CandyType[] = ['pumpkin', 'milk', 'star'];
+        candyType = easyTypes[this.totalItemsSpawned % easyTypes.length];
+        type = 'candy';
+      } else {
+        const roll = Math.random();
+        if (roll < 0.55) {
+          type = 'candy';
+          const options: CandyType[] = ['pumpkin', 'milk', 'star', 'mint', 'cloud'];
+          candyType = options[Math.floor(Math.random() * options.length)];
+        } else if (roll < 0.70) {
+          type = 'paperNote';
+        } else if (roll < 0.82) {
+          type = 'bookmark';
+        } else if (roll < 0.92) {
+          type = 'sock';
+        } else {
+          type = 'moonShard';
+        }
+      }
+      this.totalItemsSpawned++;
+    } else if (this.wave === 1) {
       // Good weather: candies
       const options: CandyType[] = ['pumpkin', 'milk', 'star', 'cloud'];
       candyType = options[Math.floor(Math.random() * options.length)];
@@ -236,17 +305,36 @@ export class CandyRainGame {
     this.consecutiveCatches++;
     this.audio.playSfx('catch');
 
+    // Literary absurd callouts for single-wave P02 (limited to max 2 with interval)
+    if (this.isSingleWave && this.calloutCount < 2 && this.calloutTimer <= 0) {
+      if (item.type === 'paperNote') {
+        this.showCallout('空气里有点不负责的文学。', 2.0);
+        this.calloutCount++;
+      } else if (item.type === 'bookmark') {
+        this.showCallout('这大概是某本书逃出来的骨头。', 2.0);
+        this.calloutCount++;
+      } else if (item.type === 'sock') {
+        this.showCallout('天气预报没有说这个。', 2.0);
+        this.calloutCount++;
+      } else if (this.consecutiveCatches >= 3) {
+        this.showCallout('我今天的运气有具体的形状。', 1.8);
+        this.calloutCount++;
+      }
+    }
+
     if (item.type === 'candy') {
       this.caughtCandyCount++;
       if (item.candyType) {
         const meta = CANDIES[item.candyType];
         this.routeScoresEarned[meta.primaryRoute] += 1;
       }
-      if (this.consecutiveCatches === 5) {
+      if (!this.isSingleWave && this.consecutiveCatches === 5) {
         this.showCallout('我可能天生适合农业。', 1.8);
       }
     } else if (item.type === 'paperNote') {
-      this.showCallout('不许饿着故事里的鬼。', 2.0);
+      if (!this.isSingleWave) {
+        this.showCallout('不许饿着故事里的鬼。', 2.0);
+      }
       this.routeScoresEarned.poet += 2;
     } else if (item.type === 'movieTicket') {
       this.showCallout('主角竟然是我？', 2.0);
@@ -255,7 +343,9 @@ export class CandyRainGame {
       this.showCallout('这杯里只有哲学。', 2.0);
       this.routeScoresEarned.milktea += 2;
     } else if (item.type === 'sock') {
-      this.showCallout('命运为什么有味道？', 2.2);
+      if (!this.isSingleWave) {
+        this.showCallout('命运为什么有味道？', 2.2);
+      }
       if (this.onEasterEggTriggered) {
         this.onEasterEggTriggered('EGG07');
       }
@@ -263,7 +353,9 @@ export class CandyRainGame {
       this.showCallout('我的思想漏出来了。', 2.0);
       this.routeScoresEarned.poet += 2;
     } else if (item.type === 'bookmark') {
-      this.showCallout('书签……卡在身体里了。', 2.0);
+      if (!this.isSingleWave) {
+        this.showCallout('书签……卡在身体里了。', 2.0);
+      }
       if (this.onGentleActTriggered) {
         this.onGentleActTriggered('pickedBookmark');
       }
@@ -271,7 +363,9 @@ export class CandyRainGame {
         this.onEasterEggTriggered('EGG08');
       }
     } else if (item.type === 'moonShard') {
-      this.showCallout('月亮原来这么轻。', 2.0);
+      if (!this.isSingleWave) {
+        this.showCallout('月亮原来这么轻。', 2.0);
+      }
       this.routeScoresEarned.sleepwalk += 2;
     } else if (item.type === 'heart') {
       this.caughtCandyCount++;
@@ -301,6 +395,24 @@ export class CandyRainGame {
     if (this.currentCallout) {
       this.renderCalloutBox(ctx);
     }
+
+    // QA Debug outline when enabled
+    if (CandyRainGame.showDebugBounds || GhostActor.showDebugBounds) {
+      const bounds = this.ghostActor
+        ? this.ghostActor.getCatchBounds(this.ghostX, this.ghostY)
+        : { left: this.ghostX - 50, right: this.ghostX + 50, top: this.ghostY - 102, bottom: this.ghostY + 102, mouthX: this.ghostX, mouthY: this.ghostY - 14 };
+      ctx.save();
+      ctx.strokeStyle = '#28a745';
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([4, 4]);
+      ctx.strokeRect(bounds.left, bounds.top, bounds.right - bounds.left, bounds.bottom - bounds.top);
+      ctx.fillStyle = '#dc3545';
+      ctx.beginPath();
+      ctx.arc(bounds.mouthX, bounds.mouthY, 4, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+
     ctx.restore();
   }
 

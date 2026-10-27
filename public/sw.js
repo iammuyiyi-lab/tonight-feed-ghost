@@ -1,4 +1,4 @@
-const CACHE_NAME = 'tonight-feed-ghost-v1.1';
+const CACHE_NAME = 'tonight-feed-ghost-v2.0';
 const CACHE_PREFIX = 'tonight-feed-ghost-';
 
 // self.__PRECACHE_ASSETS will be prepended by Vite plugin during production build.

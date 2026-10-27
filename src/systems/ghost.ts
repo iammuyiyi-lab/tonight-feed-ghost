@@ -1,4 +1,4 @@
-import { GhostAction, GhostExpression, GhostFormId } from '../types';
+import { GhostAction, GhostExpression, GhostFormId, CatchBounds } from '../types';
 import { THEME_COLORS } from '../config/constants';
 
 export class GhostActor {
@@ -42,12 +42,41 @@ export class GhostActor {
   private pokeCountRecent: number = 0;
   private lastPokeTime: number = 0;
 
+  // Debug outline toggle for QA validation
+  public static showDebugBounds: boolean = false;
+
   // Canvas dimensions
   private width: number = 300;
   private height: number = 340;
 
   constructor() {
     this.reset();
+  }
+
+  // P0-01: Expose exact bounding box and mouth coordinate in screen space
+  public getCatchBounds(centerX: number, centerY: number, scaleMultiplier: number = 1.0): CatchBounds {
+    const sX = Math.abs(this.scaleX) * this.baseScale * scaleMultiplier;
+    const sY = Math.abs(this.scaleY) * this.baseScale * scaleMultiplier;
+
+    const eyeOffsetX = this.lookX * 6;
+    const mouthX = centerX + (eyeOffsetX * 0.4) * sX;
+    const mouthY = centerY - 14 * sY;
+
+    const halfWidth = 55 * sX;
+    const top = centerY - 102 * sY;
+    const bottom = centerY + 102 * sY;
+
+    return {
+      left: centerX - halfWidth,
+      right: centerX + halfWidth,
+      top,
+      bottom,
+      centerX,
+      centerY,
+      mouthX,
+      mouthY,
+      radius: halfWidth,
+    };
   }
 
   public reset(): void {
@@ -261,6 +290,21 @@ export class GhostActor {
     }
 
     ctx.restore();
+
+    // QA Debug Bounds (only active when enabled)
+    if (GhostActor.showDebugBounds) {
+      const bounds = this.getCatchBounds(centerX, centerY, scaleMultiplier);
+      ctx.save();
+      ctx.strokeStyle = '#28a745';
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([4, 4]);
+      ctx.strokeRect(bounds.left, bounds.top, bounds.right - bounds.left, bounds.bottom - bounds.top);
+      ctx.fillStyle = '#dc3545';
+      ctx.beginPath();
+      ctx.arc(bounds.mouthX, bounds.mouthY, 4, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
   }
 
   private renderShadow(ctx: CanvasRenderingContext2D): void {

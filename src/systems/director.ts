@@ -5,7 +5,7 @@ import {
   RouteScores,
 } from '../types';
 import { THEME_COLORS, CANDIES, FORMS_META } from '../config/constants';
-import { SCENE_SCRIPTS, CANDY_REACTIONS, POKE_DIALOGUES, TEASING_DIALOGUES, IDLE_DIALOGUES } from '../config/dialogues';
+import { SCENE_SCRIPTS, V2_SCRIPTS, CANDY_REACTIONS, POKE_DIALOGUES, TEASING_DIALOGUES, IDLE_DIALOGUES } from '../config/dialogues';
 import { evaluateEndingTitle, CANDY_WRAPPERS } from '../config/collectibles';
 import { PersistenceSystem } from './persistence';
 import { AudioDirector } from './audio';
@@ -71,6 +71,16 @@ export class SceneDirector {
   // Idle timer for EGG03
   public tableIdleTimer: number = 0;
 
+  // P0-02: Transient speech bubble decoupled from dialogue queue
+  public transientBubbleText: string | null = null;
+  private transientBubbleTimer: any = null;
+  public onTransientBubbleUpdated: ((text: string | null) => void) | null = null;
+
+  // V2 Streamlined Storyline State
+  public p01Fed: boolean = false;
+  public p01IdleTimer: number = 0;
+  public p04SelectedQuote: string = '有些夜晚并不特别。有人替它多留了一颗糖。';
+
   // Subtitle queue for multi-line dialogues
   private dialogueQueue: string[] = [];
   private onQueueComplete: (() => void) | null = null;
@@ -86,6 +96,7 @@ export class SceneDirector {
     this.ghost = ghost;
 
     this.candyRain = new CandyRainGame(audio);
+    this.candyRain.ghostActor = ghost;
     this.pumpkinGame = new PumpkinMiniGame(audio);
     this.milkTeaGame = new MilkTeaMiniGame(audio);
     this.poetGame = new PoetMiniGame(audio);
@@ -93,6 +104,25 @@ export class SceneDirector {
     this.sleepwalkerGame = new SleepwalkerMiniGame(audio);
 
     this.bindMinigameEvents();
+  }
+
+  // P0-02: Show a temporary speech bubble without destroying dialogueQueue or onQueueComplete
+  public showTransientBubble(text: string, duration: number = 2.5): void {
+    if (this.transientBubbleTimer !== null) {
+      clearTimeout(this.transientBubbleTimer);
+      this.transientBubbleTimer = null;
+    }
+    this.transientBubbleText = text;
+    if (this.onTransientBubbleUpdated) {
+      this.onTransientBubbleUpdated(text);
+    }
+    this.transientBubbleTimer = setTimeout(() => {
+      this.transientBubbleText = null;
+      if (this.onTransientBubbleUpdated) {
+        this.onTransientBubbleUpdated(null);
+      }
+      this.transientBubbleTimer = null;
+    }, duration * 1000);
   }
 
   private bindMinigameEvents(): void {
@@ -114,9 +144,18 @@ export class SceneDirector {
         const key = k as keyof RouteScores;
         state.routeScore[key] += this.candyRain.routeScoresEarned[key];
       });
-      this.persistence.unlockWrapper('09'); // #09 好天气
-      this.persistence.save();
-      this.goToScene('S13');
+
+      if (this.currentScene === 'P02') {
+        this.persistence.unlockWrapper('01');
+        this.persistence.save();
+        this.showDialogueQueue([V2_SCRIPTS.P02.burp], () => {
+          this.goToScene('P03');
+        });
+      } else {
+        this.persistence.unlockWrapper('09'); // #09 好天气
+        this.persistence.save();
+        this.goToScene('S13');
+      }
     };
 
     this.candyRain.onEasterEggTriggered = (eggId) => {
@@ -147,16 +186,23 @@ export class SceneDirector {
       });
     };
 
-    // Poet S17_C
+    // Poet S17_C / P03
     this.poetGame.onCompleted = (poem) => {
       const state = this.persistence.getState();
       state.savedPoems.push(poem);
       this.persistence.unlockWrapper('05');
       this.persistence.unlockForm('poet');
       this.persistence.save();
-      this.showDialogueQueue(['我写完了。', '文学现在应该给我一颗糖。', '诗人图章已收录进手册。'], () => {
-        this.goToScene('S20');
-      });
+      if (this.currentScene === 'P03') {
+        this.setSubtitle(V2_SCRIPTS.P03.finished);
+        if (this.onActionControlsUpdated) {
+          this.onActionControlsUpdated();
+        }
+      } else {
+        this.showDialogueQueue(['我写完了。', '文学现在应该给我一颗糖。', '诗人图章已收录进手册。'], () => {
+          this.goToScene('S20');
+        });
+      }
     };
 
     // Movie S18_D
@@ -203,6 +249,9 @@ export class SceneDirector {
     this.backCoverTimer = 0;
     this.backCoverPeeked = false;
     this.tableIdleTimer = 0;
+    this.p01Fed = false;
+    this.p01IdleTimer = 0;
+    this.p04SelectedQuote = '有些夜晚并不特别。有人替它多留了一颗糖。';
 
     this.candyRain.resetEntireRainGame();
     this.pumpkinGame.reset();
@@ -212,7 +261,7 @@ export class SceneDirector {
     this.sleepwalkerGame.reset();
 
     this.persistence.resetForNewRun();
-    this.goToScene('S01');
+    this.goToScene('P00');
   }
 
   public goToScene(scene: SceneId): void {
@@ -236,7 +285,7 @@ export class SceneDirector {
     this.updateAudioForScene(scene);
 
     // Save checkpoint for major chapters
-    if (['S01', 'S06', 'S09', 'S14', 'S21', 'S26', 'S27'].includes(scene)) {
+    if (['P00', 'P01', 'P02', 'P03', 'P04', 'P05', 'S01', 'S06', 'S09', 'S14', 'S21', 'S26', 'S27'].includes(scene)) {
       state.lastSafeCheckpoint = scene;
       this.persistence.save();
     }
@@ -250,13 +299,13 @@ export class SceneDirector {
   }
 
   private updateAudioForScene(scene: SceneId): void {
-    if (scene === 'S00' || scene === 'S01' || scene === 'S02' || scene === 'S03' || scene === 'S04' || scene === 'S05') {
+    if (scene === 'P00' || scene === 'S00' || scene === 'S01' || scene === 'S02' || scene === 'S03' || scene === 'S04' || scene === 'S05') {
       this.audio.playTrack('cover');
-    } else if (scene === 'S06' || scene === 'S07' || scene === 'S08') {
+    } else if (scene === 'P01' || scene === 'P04' || scene === 'S06' || scene === 'S07' || scene === 'S08') {
       this.audio.playTrack('feeding');
-    } else if (scene === 'S09' || scene === 'S10' || scene === 'S11' || scene === 'S12' || scene === 'S13') {
+    } else if (scene === 'P02' || scene === 'S09' || scene === 'S10' || scene === 'S11' || scene === 'S12' || scene === 'S13') {
       this.audio.playTrack('rain');
-    } else if (scene.startsWith('S15') || scene.startsWith('S16') || scene.startsWith('S17') || scene.startsWith('S18') || scene.startsWith('S19') || scene === 'S14' || scene === 'S20') {
+    } else if (scene === 'P03' || scene.startsWith('S15') || scene.startsWith('S16') || scene.startsWith('S17') || scene.startsWith('S18') || scene.startsWith('S19') || scene === 'S14' || scene === 'S20') {
       this.audio.playTrack('transform');
     } else {
       this.audio.playTrack('ending');
@@ -268,6 +317,49 @@ export class SceneDirector {
     const state = this.persistence.getState();
 
     switch (scene) {
+      case 'P00':
+        this.ghost.setAction('idle');
+        this.setSubtitle(V2_SCRIPTS.P00.marginal);
+        break;
+
+      case 'P01':
+        this.ghost.setAction('hold-note');
+        this.ghost.isHoldingNote = true;
+        this.ghost.noteFrontText = V2_SCRIPTS.P01.signFront;
+        this.ghost.noteBackText = V2_SCRIPTS.P01.signBack;
+        this.ghost.isNoteFlipped = false;
+        this.p01Fed = false;
+        this.p01IdleTimer = 0;
+        this.setSubtitle('拖动南瓜糖喂饱它。');
+        break;
+
+      case 'P02':
+        this.candyRain.startSingleWaveMode(40);
+        this.ghost.setAction('idle');
+        this.setSubtitle(`${V2_SCRIPTS.P02.forecast} ${V2_SCRIPTS.P02.ghostLine}`);
+        break;
+
+      case 'P03':
+        this.ghost.form = 'poet';
+        this.ghost.setAction('idle');
+        this.poetGame.reset();
+        this.setSubtitle(V2_SCRIPTS.P03.marginal);
+        break;
+
+      case 'P04':
+        this.ghost.form = 'default';
+        this.ghost.setAction('idle');
+        this.showDialogueQueue(V2_SCRIPTS.P04.ghostLines);
+        break;
+
+      case 'P05':
+        this.ghost.form = 'default';
+        this.ghost.setAction('idle');
+        this.finalCandyClicks = 0;
+        this.finalCandyOpened = false;
+        this.showDialogueQueue(V2_SCRIPTS.P05.scareLines);
+        break;
+
       case 'S00':
         this.setSubtitle(SCENE_SCRIPTS.S00.ready);
         break;
@@ -468,6 +560,11 @@ export class SceneDirector {
       }
     } else if (this.dialogueQueue.length > 0) {
       this.nextDialogueInQueue();
+    } else if (this.onQueueComplete) {
+      // P0-02: Safely trigger and clear pending onQueueComplete without deadlocking
+      const cb = this.onQueueComplete;
+      this.onQueueComplete = null;
+      cb();
     }
   }
 
@@ -745,7 +842,12 @@ export class SceneDirector {
   public update(dt: number): void {
     this.ghost.update(dt);
 
-    if (this.currentScene === 'S10' || this.currentScene === 'S11' || this.currentScene === 'S12') {
+    if (this.currentScene === 'P01' && !this.p01Fed) {
+      this.p01IdleTimer += dt;
+      if (this.p01IdleTimer >= 3.0 && !this.ghost.isNoteFlipped) {
+        this.ghost.isNoteFlipped = true;
+      }
+    } else if (this.currentScene === 'P02' || this.currentScene === 'S10' || this.currentScene === 'S11' || this.currentScene === 'S12') {
       this.candyRain.update(dt);
     } else if (this.currentScene === 'S19_E') {
       this.sleepwalkerGame.update(dt);
