@@ -201,4 +201,18 @@ export interface SaveState {
   replayCount: number;
   savedPoems: PoemRecord[];
   settings: GameSettings;
+  customMessage?: string;
+  customMessageButton?: string;
 }
+
+export const DEFAULT_MESSAGE_BUTTON_LABEL = '来自TA的留言 💌';
+
+export const DEFAULT_CUSTOM_MESSAGE = `To 你：
+
+万圣节快乐！
+非常高兴在这个特别的夜晚与你相遇。
+所有尝过的滋味，最后都会变成骨头里的引力；
+即便天亮之后做回普通人，也别忘了今晚有一只鬼，曾认真收下过你的甜意。
+为你准备了些小心意，愿你今夜好梦！
+
+—— 来自TA的留言 💌`;

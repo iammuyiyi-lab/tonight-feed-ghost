@@ -8,7 +8,7 @@ import { QADevView } from './views/qaView';
 import { THEME_COLORS, CANDIES, FORMS_META } from './config/constants';
 import { SCENE_SCRIPTS, V2_SCRIPTS } from './config/dialogues';
 import { CANDY_WRAPPERS } from './config/collectibles';
-import { CandyType, SceneId, GhostFormId } from './types';
+import { CandyType, SceneId, GhostFormId, DEFAULT_CUSTOM_MESSAGE, DEFAULT_MESSAGE_BUTTON_LABEL } from './types';
 import { PumpkinFaceType } from './games/pumpkinGame';
 import { PunctuationType } from './games/milkTeaGame';
 import { DreamShape } from './games/sleepwalkerGame';
@@ -102,6 +102,22 @@ class GameApp {
 
   private async init(): Promise<void> {
     await this.persistence.whenReady();
+
+    // Check URL parameters for custom message sharing
+    try {
+      if (typeof window !== 'undefined' && window.location) {
+        const urlParams = new URLSearchParams(window.location.search);
+        const msgParam = urlParams.get('msg');
+        if (msgParam) {
+          this.persistence.setCustomMessage(msgParam);
+        }
+        const btnParam = urlParams.get('btn');
+        if (btnParam) {
+          this.persistence.setCustomMessageButton(btnParam);
+        }
+      }
+    } catch (_) {}
+
     this.resizeCanvas();
     window.addEventListener('resize', () => this.resizeCanvas());
 
@@ -1064,14 +1080,14 @@ class GameApp {
         };
         row.appendChild(flipBtn);
 
-        const yangBtn = document.createElement('button');
-        yangBtn.className = 'paper-btn accent';
-        yangBtn.innerText = '来自杨的留言 💌';
-        yangBtn.onclick = async () => {
+        const msgBtn = document.createElement('button');
+        msgBtn.className = 'paper-btn accent';
+        msgBtn.innerText = this.persistence.getCustomMessageButton();
+        msgBtn.onclick = async () => {
           await this.audio.unlock();
-          this.showYangMessageModal();
+          this.showCustomMessageModal();
         };
-        row.appendChild(yangBtn);
+        row.appendChild(msgBtn);
 
         this.bottomActionRow.appendChild(row);
         break;
@@ -2059,7 +2075,15 @@ class GameApp {
               <span class="slider"></span>
             </label>
           </div>
-          <div class="settings-reset-section" style="margin-top: 18px; padding-top: 14px; border-top: 1.5px dashed rgba(71, 57, 47, 0.3);">
+          <div class="settings-message-section" style="margin-top: 14px; padding-top: 14px; border-top: 1.5px dashed rgba(71, 57, 47, 0.3);">
+            <button class="paper-btn accent" id="openMessageEditorBtn" style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 6px;">
+              <span>✏️ 编辑专属留言</span>
+            </button>
+            <div style="font-size: 11px; color: var(--color-ink-light); text-align: center; margin-top: 6px;">
+              像 txt 记事本一样自由写信，Enter 换行、空格留空
+            </div>
+          </div>
+          <div class="settings-reset-section" style="margin-top: 14px; padding-top: 14px; border-top: 1.5px dashed rgba(71, 57, 47, 0.3);">
             <button class="paper-btn danger-btn" id="settingsResetBtn" style="width: 100%;">
               ↺ 一键重置所有进度
             </button>
@@ -2094,6 +2118,10 @@ class GameApp {
       state.settings.reduceMotion = motionEl.checked;
       this.applyMotionPreference();
       this.persistence.save();
+    });
+
+    document.getElementById('openMessageEditorBtn')?.addEventListener('click', () => {
+      this.openMessageEditorModal();
     });
 
     document.getElementById('settingsResetBtn')?.addEventListener('click', () => {
@@ -2135,20 +2163,25 @@ class GameApp {
     });
   }
 
-  private showYangMessageModal(): void {
+  private escapeHtml(str: string): string {
+    return str
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  private showCustomMessageModal(onBack?: () => void): void {
     this.audio.unlock();
     this.audio.playSfx('chime');
+    const message = this.persistence.getCustomMessage();
     this.modalOverlay.style.display = 'flex';
     this.modalOverlay.className = 'modal-overlay yang-modal-overlay';
     this.modalOverlay.innerHTML = `
       <div class="yang-message-modal">
         <div class="yang-modal-stamp">🎃 10.31 万圣夜</div>
-        <div class="yang-modal-header">To 陈：</div>
-        <div class="yang-modal-body">
-          <div class="yang-modal-greeting">万圣节快乐！</div>
-          <div class="yang-modal-main">非常懊悔的一件事就是初次见面我居然没想起来准备点纪念品，forgive me^~^，除了这个我还为你准备了些小心意，见面交给你！</div>
-        </div>
-        <div class="yang-modal-signature">—— 来自杨的留言 💌</div>
+        <div class="custom-message-content">${this.escapeHtml(message)}</div>
         <div class="yang-modal-footer">
           <button class="paper-btn accent yang-close-btn">收下心意 🧡</button>
         </div>
@@ -2159,14 +2192,148 @@ class GameApp {
       this.audio.playSfx('twinkle');
       this.modalOverlay.style.display = 'none';
       this.modalOverlay.className = 'modal-overlay';
+      if (onBack) onBack();
     });
 
     this.modalOverlay.onclick = (e) => {
       if (e.target === this.modalOverlay) {
         this.modalOverlay.style.display = 'none';
         this.modalOverlay.className = 'modal-overlay';
+        if (onBack) onBack();
       }
     };
+  }
+
+  // Alias for backward compatibility & test suites
+  private showYangMessageModal(): void {
+    this.showCustomMessageModal();
+  }
+
+  private openMessageEditorModal(): void {
+    const currentMsg = this.persistence.getCustomMessage();
+    const currentBtn = this.persistence.getCustomMessageButton();
+    this.modalOverlay.style.display = 'flex';
+    this.modalOverlay.className = 'modal-overlay';
+    this.modalOverlay.innerHTML = `
+      <div class="settings-modal message-editor-modal" style="max-height: 90vh; display: flex; flex-direction: column; width: 92%; max-width: 360px;">
+        <div class="settings-header">
+          <div class="settings-title">✏️ 编辑专属留言</div>
+          <button class="close-editor-btn" style="background: none; border: none; font-size: 18px; cursor: pointer; color: var(--color-ink-brown); padding: 4px 8px;">✕</button>
+        </div>
+        <div class="handbook-content" style="flex: 1; overflow-y: auto; padding: 6px 0; display: flex; flex-direction: column; gap: 10px;">
+          <div style="font-size: 11.5px; color: var(--color-ink-light); line-height: 1.5; background: rgba(237, 154, 85, 0.12); padding: 8px 10px; border-radius: 6px;">
+            📝 <strong>txt 文档格式</strong>：支持直接按 <strong>Enter 换行</strong>、<strong>空格键留空</strong>，输入什么内容就原样排版呈现。
+          </div>
+          <div>
+            <label style="font-size: 12px; font-weight: bold; color: var(--color-ink-brown); display: block; margin-bottom: 4px;">
+              按钮名称（可选）：
+            </label>
+            <input type="text" id="editorBtnInput" value="${this.escapeHtml(currentBtn)}" placeholder="来自TA的留言 💌" style="width: 100%; box-sizing: border-box; padding: 7px 10px; border: 1.5px solid var(--color-ink-brown); border-radius: 6px; font-size: 13.5px; background: #FFFDF9; color: var(--color-ink-brown);" />
+          </div>
+          <div style="flex: 1; display: flex; flex-direction: column;">
+            <label style="font-size: 12px; font-weight: bold; color: var(--color-ink-brown); display: block; margin-bottom: 4px;">
+              留言正文（支持多行/换行/空格）：
+            </label>
+            <textarea id="editorTextInput" rows="8" placeholder="在此写下留给TA的信...&#10;支持按 Enter 键换行&#10;支持空格与段落排版" style="width: 100%; box-sizing: border-box; padding: 8px 10px; border: 1.5px solid var(--color-ink-brown); border-radius: 6px; font-size: 13.5px; line-height: 1.6; font-family: inherit; background: #FFFDF9; color: var(--color-ink-brown); resize: vertical; min-height: 140px; white-space: pre-wrap;">${this.escapeHtml(currentMsg)}</textarea>
+          </div>
+          <div id="editorNotice" style="display: none; font-size: 12px; color: #2E7D32; font-weight: bold; text-align: center; padding: 4px 0;">
+            ✓ 留言已成功保存！
+          </div>
+        </div>
+        <div class="settings-footer" style="display: flex; flex-wrap: wrap; gap: 8px; justify-content: space-between; margin-top: 10px;">
+          <button class="paper-btn secondary editor-reset-btn" style="flex: 1; min-width: 80px; padding: 7px 8px; font-size: 12.5px;">恢复默认</button>
+          <button class="paper-btn secondary editor-preview-btn" style="flex: 1; min-width: 80px; padding: 7px 8px; font-size: 12.5px;">👁️ 预览信札</button>
+          <button class="paper-btn accent editor-save-btn" style="flex: 1.2; min-width: 100px; padding: 7px 8px; font-size: 12.5px;">💾 保存留言</button>
+        </div>
+        <div style="margin-top: 8px; text-align: center;">
+          <button class="editor-copy-link-btn" style="background: none; border: none; font-size: 11.5px; color: #8C3B2B; text-decoration: underline; cursor: pointer; padding: 3px;">
+            🔗 复制专属分享链接（发送给TA直接看）
+          </button>
+        </div>
+      </div>
+    `;
+
+    const btnInput = document.getElementById('editorBtnInput') as HTMLInputElement;
+    const textInput = document.getElementById('editorTextInput') as HTMLTextAreaElement;
+    const noticeEl = document.getElementById('editorNotice') as HTMLElement;
+
+    const showNotice = (text: string, isError: boolean = false) => {
+      noticeEl.innerText = text;
+      noticeEl.style.color = isError ? '#D32F2F' : '#2E7D32';
+      noticeEl.style.display = 'block';
+      setTimeout(() => {
+        if (noticeEl) noticeEl.style.display = 'none';
+      }, 3000);
+    };
+
+    // Save
+    this.modalOverlay.querySelector('.editor-save-btn')?.addEventListener('click', () => {
+      const msg = textInput.value;
+      const btn = btnInput.value.trim() || DEFAULT_MESSAGE_BUTTON_LABEL;
+      this.persistence.setCustomMessage(msg);
+      this.persistence.setCustomMessageButton(btn);
+      this.audio.playSfx('boop');
+      showNotice('✓ 留言已成功保存！');
+    });
+
+    // Reset default
+    this.modalOverlay.querySelector('.editor-reset-btn')?.addEventListener('click', () => {
+      textInput.value = DEFAULT_CUSTOM_MESSAGE;
+      btnInput.value = DEFAULT_MESSAGE_BUTTON_LABEL;
+      this.persistence.setCustomMessage(DEFAULT_CUSTOM_MESSAGE);
+      this.persistence.setCustomMessageButton(DEFAULT_MESSAGE_BUTTON_LABEL);
+      this.audio.playSfx('boop');
+      showNotice('已恢复为默认温馨留言模版');
+    });
+
+    // Preview
+    this.modalOverlay.querySelector('.editor-preview-btn')?.addEventListener('click', () => {
+      const msg = textInput.value;
+      const btn = btnInput.value.trim() || DEFAULT_MESSAGE_BUTTON_LABEL;
+      this.persistence.setCustomMessage(msg);
+      this.persistence.setCustomMessageButton(btn);
+      this.showCustomMessageModal(() => {
+        this.openMessageEditorModal();
+      });
+    });
+
+    // Copy share link
+    this.modalOverlay.querySelector('.editor-copy-link-btn')?.addEventListener('click', () => {
+      const msg = textInput.value;
+      const btn = btnInput.value.trim() || DEFAULT_MESSAGE_BUTTON_LABEL;
+      this.persistence.setCustomMessage(msg);
+      this.persistence.setCustomMessageButton(btn);
+
+      try {
+        const url = new URL(window.location.href);
+        url.searchParams.set('msg', msg);
+        if (btn && btn !== DEFAULT_MESSAGE_BUTTON_LABEL) {
+          url.searchParams.set('btn', btn);
+        } else {
+          url.searchParams.delete('btn');
+        }
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(url.toString()).then(() => {
+            showNotice('✓ 分享链接已复制到剪贴板！');
+          }).catch(() => {
+            window.prompt('请长按复制下方专属链接：', url.toString());
+          });
+        } else {
+          window.prompt('请长按复制下方专属链接：', url.toString());
+        }
+      } catch (err) {
+        showNotice('复制失败，请手动在浏览器地址栏添加参数', true);
+      }
+    });
+
+    // Close
+    const closeBtn = this.modalOverlay.querySelector('.close-editor-btn');
+    closeBtn?.addEventListener('click', () => {
+      this.modalOverlay.style.display = 'none';
+      if (this.director.currentScene === 'C04') {
+        this.renderControlsForScene('C04');
+      }
+    });
   }
 
   private showCertificateModal(): void {

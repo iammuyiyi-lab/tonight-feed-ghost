@@ -626,6 +626,35 @@ assert.doesNotThrow(() => {
 }, '当前场景音轨自动核对与启动机制必须完备');
 console.log('✓ AudioDirector 智能唤醒、全交互音效与温馨长周期背景音乐核验通过');
 
+// 26. 验证可自定义编辑留言板块 (txt 记事本格式、Enter 换行、空格、默认模版与数据持久化)
+console.log('测试 26: 验证可自定义编辑留言板块 (txt 记事本格式、Enter 换行、空格、默认模版与数据持久化)');
+const defaultMsg = persistence.getCustomMessage();
+assert.ok(defaultMsg.includes('万圣节快乐'), '默认模版必须包含节日问候');
+assert.ok(defaultMsg.includes('\n'), '默认模版必须包含标准 txt 换行');
+assert.strictEqual(persistence.getCustomMessageButton(), '来自TA的留言 💌', '默认按钮必须为泛化版本');
+
+// 测试 txt 格式换行与空格保留
+const customTxt = "To 朋友：\n\n    今夜宜喂鬼。\n    这是第二行测试。\n\n—— 你的伙伴";
+persistence.setCustomMessage(customTxt);
+assert.strictEqual(persistence.getCustomMessage(), customTxt, '自定义留言必须完整保留所有的 Enter 换行与连续空格');
+
+persistence.setCustomMessageButton('给你的信 💌');
+assert.strictEqual(persistence.getCustomMessageButton(), '给你的信 💌', '自定义按钮名称必须支持自由修改');
+
+// 测试一键重置后依然保留用户手写的专属留言
+persistence.resetAllProgress();
+assert.strictEqual(persistence.getCustomMessage(), customTxt, '重置游戏进度严禁清空用户辛苦编辑的专属留言');
+assert.strictEqual(persistence.getCustomMessageButton(), '给你的信 💌', '重置游戏进度严禁清空用户自定义的按钮名称');
+
+// 恢复默认用于其他测试
+persistence.setCustomMessage(defaultMsg);
+persistence.setCustomMessageButton('来自TA的留言 💌');
+
+// 验证 CSS 中包含 white-space: pre-wrap 确保 txt 格式真实生效
+const currentCss = fs.readFileSync(path.resolve('./src/style.css'), 'utf8');
+assert.ok(currentCss.includes('.custom-message-content') && currentCss.includes('white-space: pre-wrap'), 'CSS 必须包含 white-space: pre-wrap 以原生呈现 txt 换行与空格');
+console.log('✓ 自由编辑留言板块 (txt 换行空格无损渲染与持久化) 核验通过');
+
 console.log('\n========================================');
-console.log('🎉 25 项端到端业务、五颗糖连环品尝、自主翻页、一键重置、气泡相对坐标、杨的专属留言与温馨音效核验全部通过！');
+console.log('🎉 26 项端到端业务、txt自由编辑留言、五颗糖连环品尝、自主翻页、一键重置与温馨音效核验全部通过！');
 console.log('========================================');

@@ -1,4 +1,4 @@
-import { SaveState, SceneId, CandyType, GhostFormId, CollectibleWrapper, EasterEggRecord, PoemRecord } from '../types';
+import { SaveState, SceneId, CandyType, GhostFormId, CollectibleWrapper, EasterEggRecord, PoemRecord, DEFAULT_CUSTOM_MESSAGE, DEFAULT_MESSAGE_BUTTON_LABEL } from '../types';
 
 const STORAGE_KEY = 'tonight_feed_ghost_save_v1';
 const DB_NAME = 'TonightFeedGhostDB';
@@ -48,6 +48,8 @@ export const INITIAL_SAVE_STATE: SaveState = {
     sfxEnabled: true,
     reduceMotion: false,
   },
+  customMessage: DEFAULT_CUSTOM_MESSAGE,
+  customMessageButton: DEFAULT_MESSAGE_BUTTON_LABEL,
 };
 
 export class PersistenceSystem {
@@ -310,11 +312,33 @@ export class PersistenceSystem {
     this.save();
   }
 
+  public getCustomMessage(): string {
+    return this.state.customMessage !== undefined ? this.state.customMessage : DEFAULT_CUSTOM_MESSAGE;
+  }
+
+  public setCustomMessage(msg: string): void {
+    this.state.customMessage = msg;
+    this.save();
+  }
+
+  public getCustomMessageButton(): string {
+    return this.state.customMessageButton || DEFAULT_MESSAGE_BUTTON_LABEL;
+  }
+
+  public setCustomMessageButton(btn: string): void {
+    this.state.customMessageButton = btn;
+    this.save();
+  }
+
   // Complete reset to clean state (One-click reset progress)
   public resetAllProgress(): void {
     const savedSettings = { ...this.state.settings };
+    const savedCustomMessage = this.state.customMessage;
+    const savedCustomButton = this.state.customMessageButton;
     this.state = JSON.parse(JSON.stringify(INITIAL_SAVE_STATE));
     this.state.settings = savedSettings;
+    if (savedCustomMessage !== undefined) this.state.customMessage = savedCustomMessage;
+    if (savedCustomButton !== undefined) this.state.customMessageButton = savedCustomButton;
     this.save();
   }
 }
