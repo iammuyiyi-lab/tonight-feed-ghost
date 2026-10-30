@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <rect width="512" height="512" rx="108" fill="#1F2942" />
+  <!-- Inner Aged Paper Circle -->
+  <circle cx="256" cy="256" r="216" fill="#F7E9D2" stroke="#47392F" stroke-width="10" />
+  <circle cx="256" cy="256" r="202" fill="none" stroke="#47392F" stroke-width="3" stroke-dasharray="8 6" />
+
+  <!-- Moon in corner -->
+  <path d="M 330 110 A 42 42 0 1 0 372 152 A 34 34 0 1 1 330 110 Z" fill="#ED9A55" stroke="#47392F" stroke-width="4" />
+
+  <!-- Ghost Shadow -->
+  <ellipse cx="256" cy="380" rx="90" ry="22" fill="#D8CBB6" opacity="0.6" />
+
+  <!-- Ghost Body -->
+  <path d="M 180 340 C 170 210, 190 160, 256 160 C 322 160, 342 210, 332 340 C 310 360, 290 335, 275 355 C 260 335, 240 360, 225 345 C 205 365, 190 335, 180 340 Z" fill="#FFFDF7" stroke="#47392F" stroke-width="8" stroke-linejoin="round" />
+
+  <!-- Ghost Eyes -->
+  <circle cx="230" cy="235" r="9" fill="#47392F" />
+  <circle cx="227" cy="232" r="3" fill="#FFFFFF" />
+  <circle cx="282" cy="235" r="9" fill="#47392F" />
+  <circle cx="279" cy="232" r="3" fill="#FFFFFF" />
+
+  <!-- Ghost Smile -->
+  <path d="M 248 260 Q 256 268 264 260" fill="none" stroke="#47392F" stroke-width="5" stroke-linecap="round" />
+
+  <!-- Pumpkin Candy in Hand -->
+  <circle cx="256" cy="310" r="24" fill="#ED9A55" stroke="#47392F" stroke-width="5" />
+  <rect x="252" y="278" width="8" height="12" rx="3" fill="#6E8A5E" stroke="#47392F" stroke-width="3" />
+</svg>
